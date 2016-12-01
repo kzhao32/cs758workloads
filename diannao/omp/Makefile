@@ -9,7 +9,8 @@ CPP=/s/gcc-4.7.3/bin/g++ -O3
 
 OPT?=-O3
 CFLAGS=$(OPT) --std=c++11 -g -ggdb -gdwarf-3 
-MODULE          := pooling convolution-shared convolution-private classifier conv1 conv2 conv3 conv4 pool1 pool3 pool5 class1 class3 conv1p conv2p conv3p conv4p pool1p pool3p pool5p class1p class3p conv5 conv5p class1_omp class3_omp class1p_omp class3p_omp
+MODULE          := class1_omp class3_omp class1p_omp class3p_omp class4_omp class5_omp class6_omp class7_omp
+#pooling convolution-shared convolution-private classifier conv1 conv2 conv3 conv4 pool1 pool3 pool5 class1 class3 conv1p conv2p conv3p conv4p pool1p pool3p pool5p class1p class3p conv5 conv5p
 #SRC             := $(MODULE:=.cpp)
 #OBJ             := $(MODULE:=.o)
 
@@ -123,6 +124,18 @@ class1_omp: classifier_omp.cpp
 class3_omp: classifier_omp.cpp
 	$(CPP) $^ $(LIB) $(CFLAGS) -fopenmp -static -o $@ -DNi=960 -DNn=20     -DTii=80 -DTi=20 -DTnn=20 -DTn=20
 
+class4_omp: classifier_omp.cpp
+	$(CPP) $^ $(LIB) $(CFLAGS) -fopenmp -static -o $@ -DNi=9600 -DNn=20     -DTii=80 -DTi=20 -DTnn=20 -DTn=20
+
+class5_omp: classifier_omp.cpp
+	$(CPP) $^ $(LIB) $(CFLAGS) -fopenmp -static -o $@ -DNi=96000 -DNn=20     -DTii=80 -DTi=20 -DTnn=20 -DTn=20
+
+class6_omp: classifier_omp.cpp
+	$(CPP) $^ $(LIB) $(CFLAGS) -fopenmp -static -o $@ -DNi=960000 -DNn=20     -DTii=80 -DTi=20 -DTnn=20 -DTn=20
+
+class7_omp: classifier_omp.cpp
+	$(CPP) $^ $(LIB) $(CFLAGS) -fopenmp -static -o $@ -DNi=9600000 -DNn=20     -DTii=80 -DTi=20 -DTnn=20 -DTn=20
+
 clean:
-	@rm -f $(MODULE) convolution pooling classifier
+	@rm -fv $(MODULE) convolution pooling classifier
 

@@ -49,10 +49,12 @@ int classifier_layer_blocked(VTYPE (&synapse)[Nn][Ni], VTYPE (&neuron_i)[Ni],
     int ii;
     int n;
     VTYPE sum_sc;
+    cout << "Ni = " << Ni << "; Tii = " << Tii << "; Tn = " << Tn << "; nn = " << nn << endl;
     for (int nnn = 0; nnn < Nn; nnn += Tnn) { // tiling for output neurons;
         #pragma omp parallel for \
-            shared(sum,synapse,neuron_i) \
-            private(ii,n,sum_sc)
+            shared(nnn,sum,synapse,neuron_i) \
+            private(iii,ii,n,sum_sc) \
+            schedule(static)
         for (iii = 0; iii < Ni; iii += Tii) { // tiling for input neurons;
             for (nn = nnn; nn < nnn + Tnn; nn += Tn) {
                 /*        for (int n = nn; n < nn + Tn; n++) {
@@ -97,7 +99,11 @@ int classifier_layer(VTYPE (&synapse)[Nn][Ni], VTYPE (&neuron_i)[Ni], VTYPE (&ne
 
 int main(int argc, char** argv) {
     fill_classifier(synapse,neuron_i);
-    omp_set_num_threads(1);
+    
+    if (argc==2) {
+        omp_set_num_threads(atoi(argv[1]));
+        //NumProcs = atoi(argv[1]);
+    }
     
     hwtimer_t timer;
     initTimer(&timer);
@@ -105,9 +111,9 @@ int main(int argc, char** argv) {
     begin_roi();
     startTimer(&timer); // Start the time measurment here before the algorithm starts
 
-    if(argc==3) {
+    if(argc==4) {
         // } else if(argc==2 && string(argv[1])=="perf") {
-    } else if(argc==2) {
+    } else if(argc==3) {
         int calc = classifier_layer_blocked(synapse,neuron_i,neuron_n);
         if(calc > 0) {
         cout << "calc: " << calc << "\n";

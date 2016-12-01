@@ -31,7 +31,7 @@ VTYPE neuron_i[Ni];
 VTYPE neuron_n[Nn],    neuron_n2[Nn];
 int calc = 0;
 
-int NumProcs = 1;
+int NumProcs = 4;
 pthread_mutex_t   SyncLock; /* mutex */
 pthread_cond_t    SyncCV; /* condition variable */
 int               SyncCount; /* number of processors at the barrier so far */
@@ -85,7 +85,12 @@ void* classifier_layer_blocked(void* arg) {
     int total_calc=0;
     VTYPE sum[Nn]={0};
     for (int nnn = 0; nnn < Nn; nnn += Tnn) { // tiling for output neurons;
-        for (int iii = 0 + threadId; iii < Ni; iii += Tii * NumProcs) { // tiling for input neurons;
+        // line below is original without pthreads
+        //for (int iii = 0; iii < Ni; iii += Tii) { // tiling for input neurons;
+        // line below is bad for cache locality
+        //for (int iii = (Ni/Tii)*threadId; iii < Ni && iii < (Ni/Tii)*(threadId + 1); iii += Tii * NumProcs) { // tiling for input neurons;
+        // line below may be off by a few if Ni is not divisible by NumProcs
+        for (int iii = (Ni/NumProcs)*threadId; iii < Ni && iii < (Ni/NumProcs)*(threadId + 1); iii += Tii) { // tiling for input neurons;
             for (int nn = nnn; nn < nnn + Tnn; nn += Tn) {
                 /*        for (int n = nn; n < nn + Tn; n++) {
                 cout << "i-n" << n << " " << nn+Tn << "\n";
@@ -133,7 +138,11 @@ int classifier_layer(VTYPE (&synapse)[Nn][Ni], VTYPE (&neuron_i)[Ni], VTYPE (&ne
 
 int main(int argc, char** argv) {
     fill_classifier(synapse,neuron_i);
-    omp_set_num_threads(1);
+    
+    if (argc==2) {
+        //omp_set_num_threads(argv[1]);
+        NumProcs = atoi(argv[1]);
+    }
     
     hwtimer_t timer;
     initTimer(&timer);
@@ -157,9 +166,9 @@ int main(int argc, char** argv) {
     begin_roi();
     startTimer(&timer); // Start the time measurment here before the algorithm starts
 
-    if(argc==3) {
+    if(argc==4) {
         // } else if(argc==2 && string(argv[1])=="perf") {
-    } else if(argc==2) {
+    } else if(argc==3) {
         //int calc = classifier_layer_blocked(synapse,neuron_i,neuron_n);
         for (threadIndex = 0; threadIndex < NumProcs; ++threadIndex) {
             // ************************************************************
@@ -191,7 +200,6 @@ int main(int argc, char** argv) {
         }
         //cout << "Perf Run Complete\n";
     } else {
-        
         for (threadIndex = 0; threadIndex < NumProcs; ++threadIndex) {
             // ************************************************************
             // pthread_create takes 4 parameters

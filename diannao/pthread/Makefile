@@ -9,7 +9,8 @@ CPP=/s/gcc-4.7.3/bin/g++ -O3
 
 OPT?=-O3
 CFLAGS=$(OPT) --std=c++11 -g -ggdb -gdwarf-3 
-MODULE          := pooling convolution-shared convolution-private classifier conv1 conv2 conv3 conv4 pool1 pool3 pool5 class1 class3 conv1p conv2p conv3p conv4p pool1p pool3p pool5p class1p class3p conv5 conv5p class1p_omp class3p_omp class1_omp class3_omp class1p_pthread class3p_pthread class1_pthread class3_pthread
+MODULE          := class1p_pthread class3p_pthread class1_pthread class3_pthread class4_pthread class5_pthread class6_pthread class7_pthread
+#pooling convolution-shared convolution-private classifier conv1 conv2 conv3 conv4 pool1 pool3 pool5 class1 class3 conv1p conv2p conv3p conv4p pool1p pool3p pool5p class1p class3p conv5 conv5p class1p_omp class3p_omp class1_omp class3_omp
 #SRC             := $(MODULE:=.cpp)
 #OBJ             := $(MODULE:=.o)
 
@@ -124,17 +125,29 @@ class3_omp: classifier_omp.cpp
 	$(CPP) $^ $(LIB) $(CFLAGS) -fopenmp -static -o $@ -DNi=960 -DNn=20     -DTii=80 -DTi=20 -DTnn=20 -DTn=20
 
 class1p_pthread: classifier_pthread.cpp
-	$(CPP) $^ $(LIB) $(CFLAGS) $(TF) -lpthread -fopenmp -static -o $@ -DNi=224 -DNn=128    -DTii=32 -DTi=32 -DTx=2 -DTy=4 
+	$(CPP) $^ $(LIB) $(CFLAGS) $(TF) -lpthread -static -o $@ -DNi=224 -DNn=128    -DTii=32 -DTi=32 -DTx=2 -DTy=4 
 
 class3p_pthread: classifier_pthread.cpp
-	$(CPP) $^ $(LIB) $(CFLAGS) $(TF) -lpthread -fopenmp -static -o $@ -DNi=960 -DNn=32     -DTii=192 -DTi=192 -DTx=2 -DTy=4
+	$(CPP) $^ $(LIB) $(CFLAGS) $(TF) -lpthread -static -o $@ -DNi=960 -DNn=32     -DTii=192 -DTi=192 -DTx=2 -DTy=4
 
 class1_pthread: classifier_pthread.cpp
-	$(CPP) $^ $(LIB) $(CFLAGS) -lpthread -fopenmp -static -o $@ -DNi=200 -DNn=100    -DTii=40 -DTi=20 -DTnn=40 -DTn=20
+	$(CPP) $^ $(LIB) $(CFLAGS) -lpthread -static -o $@ -DNi=200 -DNn=100    -DTii=40 -DTi=20 -DTnn=40 -DTn=20
 
 class3_pthread: classifier_pthread.cpp
-	$(CPP) $^ $(LIB) $(CFLAGS) -lpthread -fopenmp -static -o $@ -DNi=960 -DNn=20     -DTii=80 -DTi=20 -DTnn=20 -DTn=20
+	$(CPP) $^ $(LIB) $(CFLAGS) -lpthread -static -o $@ -DNi=960 -DNn=20     -DTii=80 -DTi=20 -DTnn=20 -DTn=20
+
+class4_pthread: classifier_pthread.cpp
+	$(CPP) $^ $(LIB) $(CFLAGS) -lpthread -static -o $@ -DNi=9600 -DNn=20     -DTii=80 -DTi=20 -DTnn=20 -DTn=20
+
+class5_pthread: classifier_pthread.cpp
+	$(CPP) $^ $(LIB) $(CFLAGS) -lpthread -static -o $@ -DNi=96000 -DNn=20     -DTii=80 -DTi=20 -DTnn=20 -DTn=20
+
+class6_pthread: classifier_pthread.cpp
+	$(CPP) $^ $(LIB) $(CFLAGS) -lpthread -static -o $@ -DNi=960000 -DNn=20     -DTii=80 -DTi=20 -DTnn=20 -DTn=20
+
+class7_pthread: classifier_pthread.cpp
+	$(CPP) $^ $(LIB) $(CFLAGS) -lpthread -static -o $@ -DNi=9600000 -DNn=20     -DTii=80 -DTi=20 -DTnn=20 -DTn=20
 
 clean:
-	@rm -f $(MODULE) convolution pooling classifier
+	@rm -fv $(MODULE) convolution pooling classifier
 

@@ -113,5 +113,5 @@ class3: classifier.cpp
 
 
 clean:
-	@rm -f $(MODULE) convolution pooling classifier
+	@rm -fv $(MODULE) convolution pooling classifier
 
