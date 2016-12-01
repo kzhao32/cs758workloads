@@ -49,12 +49,11 @@ int classifier_layer_blocked(VTYPE (&synapse)[Nn][Ni], VTYPE (&neuron_i)[Ni],
     int ii;
     int n;
     VTYPE sum_sc;
-    cout << "Ni = " << Ni << "; Tii = " << Tii << "; Tn = " << Tn << "; nn = " << nn << endl;
+    //cout << "Ni = " << Ni << "; Tii = " << Tii << "; Tn = " << Tn << "; nn = " << nn << endl;
     for (int nnn = 0; nnn < Nn; nnn += Tnn) { // tiling for output neurons;
         #pragma omp parallel for \
             shared(nnn,sum,synapse,neuron_i) \
-            private(iii,ii,n,sum_sc) \
-            schedule(static)
+            private(iii,nn,ii,n,sum_sc)
         for (iii = 0; iii < Ni; iii += Tii) { // tiling for input neurons;
             for (nn = nnn; nn < nnn + Tnn; nn += Tn) {
                 /*        for (int n = nn; n < nn + Tn; n++) {
@@ -116,7 +115,7 @@ int main(int argc, char** argv) {
     } else if(argc==3) {
         int calc = classifier_layer_blocked(synapse,neuron_i,neuron_n);
         if(calc > 0) {
-        cout << "calc: " << calc << "\n";
+            cout << "calc: " << calc << "\n";
         }
         //cout << "Perf Run Complete\n";
     } else {

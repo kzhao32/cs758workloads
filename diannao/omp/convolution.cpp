@@ -175,11 +175,11 @@ std::pair<int,int> convolution_layer_blocked(
                                             sum_sc=0;
                                             for (int i = ii; i < ii + Ti; i++) {
                                                 #if SHARED == 1 // version with shared kernels
-                                                VTYPE sv = synapse[ky][kx][n][i];
-                                                VTYPE nv = neuron_i[ky + y][kx + x][i];
+                                                    VTYPE sv = synapse[ky][kx][n][i];
+                                                    VTYPE nv = neuron_i[ky + y][kx + x][i];
                                                 #else // version with private kernels
-                                                VTYPE sv = synapse[yout][xout][ky][kx][n][i];
-                                                VTYPE nv = neuron_i[ky + y][kx + x][i];
+                                                    VTYPE sv = synapse[yout][xout][ky][kx][n][i];
+                                                    VTYPE nv = neuron_i[ky + y][kx + x][i];
                                                 #endif
                                                 sum_sc+=(sv*nv)>>1;
                                             }
