@@ -9,7 +9,7 @@ CPP=/s/gcc-4.7.3/bin/g++ -O3
 
 OPT?=-O3
 CFLAGS=$(OPT) --std=c++11 -g -ggdb -gdwarf-3 
-MODULE          := pooling convolution-shared convolution-private classifier conv1 conv2 conv3 conv4 pool1 pool3 pool5 class1 class3 conv1p conv2p conv3p conv4p pool1p pool3p pool5p class1p class3p conv5 conv5p
+MODULE          := pooling convolution-shared convolution-private classifier conv1 conv2 conv3 conv4 pool1 pool3 pool5 class1 class3 conv1p conv2p conv3p conv4p pool1p pool3p pool5p class1p class3p conv5 conv5p pool6_cpu pool7_cpu pool8_cpu pool9_cpu
 #SRC             := $(MODULE:=.cpp)
 #OBJ             := $(MODULE:=.o)
 
@@ -111,6 +111,17 @@ class1: classifier.cpp
 class3: classifier.cpp
 	$(CPP) $^ $(LIB) $(CFLAGS) -static -o $@ -DNi=960 -DNn=20     -DTii=80 -DTi=20 -DTnn=20 -DTn=20
 
+pool6_cpu: pooling.cpp                                                                             
+	$(CPP) $^ $(LIB) $(CFLAGS) -static -o $@ -DNx=256 -DNy=256 -DKx=2  -DKy=2  -DNi=256    -DTii=256 -DTi=16 -DTx=16 -DTy=16
+
+pool7_cpu: pooling.cpp                                                                             
+	$(CPP) $^ $(LIB) $(CFLAGS) -static -o $@ -DNx=256 -DNy=256 -DKx=2  -DKy=2  -DNi=256    -DTii=1024 -DTi=16 -DTx=16 -DTy=16
+
+pool8_cpu: pooling.cpp                                                                             
+	$(CPP) $^ $(LIB) $(CFLAGS) -static -o $@ -DNx=256 -DNy=256 -DKx=2  -DKy=2  -DNi=256    -DTii=4096 -DTi=16 -DTx=16 -DTy=16
+
+pool9_cpu: pooling.cpp                                                                             
+	$(CPP) $^ $(LIB) $(CFLAGS) -static -o $@ -DNx=256 -DNy=256 -DKx=2  -DKy=2  -DNi=256    -DTii=16384 -DTi=16 -DTx=16 -DTy=16
 
 clean:
 	@rm -fv $(MODULE) convolution pooling classifier

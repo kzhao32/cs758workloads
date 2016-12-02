@@ -75,6 +75,8 @@ int pooling_layer_blocked(VTYPE (&neuron_i)[NYPAD][NXPAD][Ni],
                 int yout = yy/Sy;
                 for (int y = yy; y < yy + Ty; y += Sy) {
                     int xout = xx/Sx;
+                    // if moving parallel for here, then use barrier and single before incrementing xout
+                    // cant move parallel for loop here because xout should be set before future iterations start
                     for (int x = xx; x < xx + Tx; x += Sx) {
                         #pragma omp parallel for \
                             shared(neuron_i,neuron_n,yout,y,xout,x) \

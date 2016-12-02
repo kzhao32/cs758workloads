@@ -31,7 +31,7 @@ VTYPE neuron_i[Ni];
 VTYPE neuron_n[Nn],    neuron_n2[Nn];
 int calc = 0;
 
-int NumProcs = 4;
+int NumProcs = 1;
 pthread_mutex_t   SyncLock; /* mutex */
 pthread_cond_t    SyncCV; /* condition variable */
 int               SyncCount; /* number of processors at the barrier so far */
@@ -90,7 +90,7 @@ void* classifier_layer_blocked(void* arg) {
         // line below is bad for cache locality
         //for (int iii = (Ni/Tii)*threadId; iii < Ni && iii < (Ni/Tii)*(threadId + 1); iii += Tii * NumProcs) { // tiling for input neurons;
         // line below may be off by a few if Ni is not divisible by NumProcs
-        for (int iii = (Ni/NumProcs)*threadId; iii < Ni && iii < (Ni/NumProcs)*(threadId + 1); iii += Tii) { // tiling for input neurons;
+        for (int iii = (Ni/NumProcs)*threadId; iii < Ni && iii < (Ni/NumProcs)*(threadId+1); iii += Tii) { // tiling for input neurons;
             for (int nn = nnn; nn < nnn + Tnn; nn += Tn) {
                 /*        for (int n = nn; n < nn + Tn; n++) {
                 cout << "i-n" << n << " " << nn+Tn << "\n";
@@ -144,16 +144,13 @@ int main(int argc, char** argv) {
         NumProcs = atoi(argv[1]);
     }
     
-    hwtimer_t timer;
-    initTimer(&timer);
-
     // Initialize array of thread structures
     pthread_t* threads = (pthread_t*) malloc(sizeof(pthread_t) * NumProcs);
     if (threads == NULL) {
         printf("Could not malloc pthread_t\n");
         return EXIT_FAILURE;
     }
-    
+
     // Init condition variables  and locks
     int ret;
     int threadIndex;
@@ -162,7 +159,10 @@ int main(int argc, char** argv) {
     ret = pthread_mutex_init(&SyncLock, NULL);
     assert(ret == 0);
     SyncCount = 0;
-        
+    
+    hwtimer_t timer;
+    initTimer(&timer);
+    
     begin_roi();
     startTimer(&timer); // Start the time measurment here before the algorithm starts
 
