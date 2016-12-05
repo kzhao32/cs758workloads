@@ -10,7 +10,8 @@ CPP=/s/gcc-4.7.3/bin/g++ -O3
 OPT?=-O3
 CFLAGS=$(OPT) --std=c++11 -g -ggdb -gdwarf-3 
 MODULE          := class1_omp class3_omp class1p_omp class3p_omp class4_omp class5_omp class6_omp class7_omp \
-                   pool1_omp pool3_omp pool5_omp pool1p_omp pool3p_omp pool5p_omp pool6_omp
+                   pool1_omp pool3_omp pool5_omp pool1p_omp pool3p_omp pool5p_omp pool6_omp \
+                   conv1p_omp conv2p_omp conv3p_omp conv4p_omp conv5p_omp conv1_omp conv2_omp conv3_omp conv4_omp conv5_omp
 #                   pool6_omp pool7_omp pool8_omp pool9_omp
 #pooling convolution-shared convolution-private classifier conv1 conv2 conv3 conv4 pool1 pool3 pool5 class1 class3 conv1p conv2p conv3p conv4p pool1p pool3p pool5p class1p class3p conv5 conv5p
 #SRC             := $(MODULE:=.cpp)
@@ -158,6 +159,36 @@ pool5_omp: pooling_omp.cpp
 
 pool6_omp: pooling_omp.cpp                                                                             
 	$(CPP) $^ $(LIB) $(CFLAGS) -fopenmp -static -o $@ -DNx=256 -DNy=256 -DKx=2  -DKy=2  -DNi=256    -DTii=256 -DTi=16 -DTx=16 -DTy=16
+
+conv1p_omp: convolution_omp.cpp
+	$(CPP) $^ $(LIB) $(CFLAGS) $(TF) -fopenmp -static -o $@ -DNx=500 -DNy=375 -DKx=9  -DKy=9  -DNi=32  -DNn=64  -DSHARED=1      -DTnn=64 -DTn=32 -DTx=10 -DTy=25 -DTi=32
+
+conv2p_omp: convolution_omp.cpp
+	$(CPP) $^ $(LIB) $(CFLAGS) $(TF) -fopenmp -static -o $@ -DNx=200 -DNy=200 -DKx=18 -DKy=18 -DNi=8   -DNn=16  -DSHARED=0      -DTi=8 -DTnn=16 -DTn=16 -DTx=4 -DTy=20
+
+conv3p_omp: convolution_omp.cpp
+	$(CPP) $^ $(LIB) $(CFLAGS) $(TF) -fopenmp -static -o $@ -DNx=32  -DNy=32  -DKx=4  -DKy=4  -DNi=128 -DNn=224 -DSHARED=1      -DTi=64 -DTx=4
+
+conv4p_omp: convolution_omp.cpp
+	$(CPP) $^ $(LIB) $(CFLAGS) $(TF) -fopenmp -static -o $@ -DNx=32  -DNy=32  -DKx=7  -DKy=7  -DNi=16  -DNn=512 -DSHARED=1      -DTnn=64 -DTn=64 -DTx=8
+
+conv5p_omp: convolution_omp.cpp
+	$(CPP) $^ $(LIB) $(CFLAGS) $(TF) -fopenmp -static -o $@ -DNx=256 -DNy=256 -DKx=11 -DKy=11 -DNi=256 -DNn=384 -DSHARED=1      -DTnn=64 -DTi=64 -DTx=8
+
+conv1_omp: convolution_omp.cpp
+	$(CPP) $^ $(LIB) $(CFLAGS) -fopenmp -static -o $@ -DNx=500 -DNy=375 -DKx=9  -DKy=9  -DNi=32  -DNn=48  -DSHARED=1     -DTnn=16 -DTn=16 -DTi=16 -DTx=16 -DTy=16
+
+conv2_omp: convolution_omp.cpp
+	$(CPP) $^ $(LIB) $(CFLAGS) -fopenmp -static -o $@ -DNx=200 -DNy=200 -DKx=18 -DKy=18 -DNi=8   -DNn=8   -DSHARED=0     -DTnn=8 -DTn=8 -DTi=8 -DTx=16 -DTy=16
+
+conv3_omp: convolution_omp.cpp
+	$(CPP) $^ $(LIB) $(CFLAGS) -fopenmp -static -o $@ -DNx=32  -DNy=32  -DKx=4  -DKy=4  -DNi=108 -DNn=200 -DSHARED=1     -DTnn=20 -DTn=10 -DTi=20 -DTx=16 -DTy=16
+
+conv4_omp: convolution_omp.cpp
+	$(CPP) $^ $(LIB) $(CFLAGS) -fopenmp -static -o $@ -DNx=32  -DNy=32  -DKx=7  -DKy=7  -DNi=16  -DNn=512 -DSHARED=1     -DTnn=64 -DTn=16 -DTi=16 -DTx=16 -DTy=16
+
+conv5_omp: convolution_omp.cpp
+	$(CPP) $^ $(LIB) $(CFLAGS) -fopenmp -static -o $@ -DNx=256 -DNy=256 -DKx=11 -DKy=11 -DNi=256 -DNn=384 -DSHARED=1     -DTnn=64 -DTn=16 -DTi=16 -DTx=16 -DTy=16
 
 clean:
 	@rm -fv $(MODULE) convolution pooling classifier

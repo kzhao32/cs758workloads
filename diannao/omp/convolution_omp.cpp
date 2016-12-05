@@ -2,6 +2,7 @@
 #include <string>
 #include <omp.h>
 #include "dnn.hpp"
+#include "hwtimer.h"
 
 using namespace std;
 
@@ -138,6 +139,88 @@ void fill_convolution_shared(VTYPE (&synapse)[Ky][Kx][Nn][Ni],
     }
 }
 
+std::pair<int,int> convolution_layer_blocked_omp(
+#if SHARED == 1
+    VTYPE (&synapse)[Ky][Kx][Nn][Ni], 
+#else
+    VTYPE (&synapse)[NYSCL][NXSCL][Ky][Kx][Nn][Ni], 
+#endif
+    VTYPE (&neuron_i)[NYPAD][NXPAD][Ni], 
+    VTYPE (&neuron_n)[NYSCL][NXSCL][Nn]) {
+    int c1=0,c2=0;
+    VTYPE sum[Nn]={0};
+    
+    int yy;
+    int xx;
+    int nnn;
+    int yout;
+    int y;
+    int xout;
+    int x; 
+    int nn;
+    int n;
+    int ky; 
+    int kx; 
+    int ii;
+    int i;
+    #pragma omp parallel for \
+        shared(synapse,neuron_i,neuron_n) \
+        private(yy,xx,nnn,yout,y,xout,x,nn,n,ky,kx,ii,i)
+    for (yy = 0; yy < Ny; yy += Ty) {
+        for (xx = 0; xx < Ny; xx += Tx) {
+            for (nnn = 0; nnn < Nn; nnn += Tnn) {
+                // — Original code — (excluding nn, ii loops)
+                yout = yy/Sy;//0;
+                for (y = yy; y < yy + Ty; y += Sy) { // tiling for y;
+                    xout = xx/Sx; //0;
+                    for (x = xx; x < xx + Tx; x += Sx) { // tiling for x;
+
+                        for (nn = nnn; nn < nnn + Tnn; nn += Tn) {
+                            for (n = nn; n < nn + Tn; n++) {
+                                sum[n] = 0;
+                            }
+                            // sliding window;
+                            for (ky = 0; ky < Ky; ky++) {
+                                for (kx = 0; kx < Kx; kx++) {
+
+                                    int ii = 0;
+                                    VTYPE sum_sc;
+
+                                    for (; ii < Ni -Ti+1; ii += Ti) { //don't do past the end
+                                        //c1++;
+                                        for (n = nn; n < nn + Tn; n++) {
+                                            sum_sc=0;
+                                            for (i = ii; i < ii + Ti; i++) {
+                                                #if SHARED == 1 // version with shared kernels
+                                                    VTYPE sv = synapse[ky][kx][n][i];
+                                                    VTYPE nv = neuron_i[ky + y][kx + x][i];
+                                                #else // version with private kernels
+                                                    VTYPE sv = synapse[yout][xout][ky][kx][n][i];
+                                                    VTYPE nv = neuron_i[ky + y][kx + x][i];
+                                                #endif
+                                                sum_sc+=(sv*nv)>>1;
+                                            }
+                                            sum[n]+=sum_sc;
+                                        }
+                                    }
+                                }
+                            }
+                            //sigmoid
+                            for (n = nn; n < nn + Tn; n++) {
+                                neuron_n[yout][xout][n] = sigmoid(sum[n]);
+                                //c2++;
+                            }
+                        }
+                        xout++; 
+                    }
+                    yout++;
+                }
+            }
+        }
+    }
+    return make_pair(c1,c2);
+}
+
 std::pair<int,int> convolution_layer_blocked(
 #if SHARED == 1
     VTYPE (&synapse)[Ky][Kx][Nn][Ni], 
@@ -204,7 +287,66 @@ std::pair<int,int> convolution_layer_blocked(
     return make_pair(c1,c2);
 }
 
-std::pair<int,int>  convolution_layer(
+std::pair<int,int> convolution_layer_omp(
+#if SHARED == 1
+    VTYPE (&synapse)[Ky][Kx][Nn][Ni], 
+#else
+    VTYPE (&synapse)[NYSCL][NXSCL][Ky][Kx][Nn][Ni], 
+#endif
+    VTYPE (&neuron_i)[NYPAD][NYPAD][Ni], 
+    VTYPE (&neuron_n)[NYSCL][NXSCL][Nn]) {
+    int c1=0,c2=0;
+    VTYPE sum[Nn]={0};
+
+    // — Original code — (excluding nn, ii loops)
+    int yout = 0;
+    int y;
+    int xout;
+    int x; 
+    int nn;
+    int n;
+    int ky; 
+    int kx;
+    int i; 
+    #pragma omp parallel for \
+        shared(synapse,neuron_i,neuron_n) \
+        private(y,xout,x,nn,n,ky,kx,i)
+    for (y = 0; y < Ny; y += Sy) { // tiling for y;
+        xout = 0;
+        for (x = 0; x < Ny; x += Sx) { // tiling for x;
+            for (nn = 0; nn < Nn; nn += Tn) {
+                for (n = nn; n < nn + Tn; n++) {
+                    sum[n]=0;
+                }
+
+                // sliding window;
+                for (ky = 0; ky < Ky; ky++)
+                    for (kx = 0; kx < Kx; kx++)
+                        for (n = nn; n < nn + Tn; n++)
+                            for (i = 0; i < Ni; i++) {
+                                #if SHARED == 1 // version with shared kernels
+                                    VTYPE sv = synapse[ky][kx][n][i];
+                                    VTYPE nv = neuron_i[ky + y][kx + x][i];
+                                #else // version with private kernels
+                                    VTYPE sv = synapse[yout][xout][ky][kx][n][i];
+                                    VTYPE nv = neuron_i[ky + y][kx + x][i];
+                                #endif
+                                sum[n]+=(sv*nv)>>1;
+                            }
+                //sigmoid
+                for (int n = nn; n < nn + Tn; n++) {
+                    neuron_n[yout][xout][n] = sigmoid(sum[n]);
+                    c2++;
+                }
+            }
+            xout++; 
+        }
+        yout++;
+    }
+    return make_pair(c1,c2);
+}
+
+std::pair<int,int> convolution_layer(
 #if SHARED == 1
     VTYPE (&synapse)[Ky][Kx][Nn][Ni], 
 #else
@@ -270,17 +412,29 @@ int main(const int argc, const char** argv) {
     fill_convolution_private(*synapse,*neuron_i);
 #endif
 
+    if (argc==2 || argc==3) {
+        omp_set_num_threads(atoi(argv[1]));
+        //NumProcs = atoi(argv[1]);
+    }
+    
+    hwtimer_t timer;
+    initTimer(&timer);
+
     begin_roi();
-    if(argc==3) {
+    startTimer(&timer); // Start the time measurment here before the algorithm starts
+
+    if(argc==4) {
 
         //  } else if(argc==2 && string(argv[1])=="perf") {
-    } else if(argc==2) {
-        auto calc  = convolution_layer_blocked(*synapse,*neuron_i,*neuron_n);
+    } else if(argc==3) {
+        //auto calc  = convolution_layer_blocked(*synapse,*neuron_i,*neuron_n);
+        auto calc  = convolution_layer_omp(*synapse,*neuron_i,*neuron_n);
         //cout << "Perf Run Complete\n";
     } else {
         cout << "argc: " << argc << "\n";
 
-        auto calc  = convolution_layer_blocked(*synapse,*neuron_i,*neuron_n);
+        //auto calc  = convolution_layer_blocked(*synapse,*neuron_i,*neuron_n);
+        auto calc  = convolution_layer_omp(*synapse,*neuron_i,*neuron_n);
         auto calc2 = convolution_layer(*synapse,*neuron_i,*neuron_n2);
         if(calc.first!=0) {
             cout << "blocks=" << calc.first << "\n";
@@ -290,7 +444,9 @@ int main(const int argc, const char** argv) {
         cout << "mults: " << n_outputs*Ni*Kx*Ky << " sigmoids: "  << n_outputs << "\n";
         cout << "argc: " << argc << "\n";
     }
+    stopTimer(&timer); // End the time measuremnt here since the algorithm ended
     end_roi();
+    printf("Total Execution time: %lld ns\n", getTimerNs(&timer));
 
     //cout << "mult-block:  " << calc.first   << " sigmoid-block: " << calc.second  << "\n";
     //cout << "mult-orig:  "  << calc2.first  << " sigmoid-orig:  " << calc2.second << "\n";
