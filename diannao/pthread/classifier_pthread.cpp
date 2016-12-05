@@ -92,10 +92,10 @@ void* classifier_layer_blocked_pthread(void* arg) {
         // line below may be off by a few if Ni is not divisible by NumProcs
         for (int iii = (Ni/NumProcs)*threadId; iii < Ni && iii < (Ni/NumProcs)*(threadId+1); iii += Tii) { // tiling for input neurons;
             for (int nn = nnn; nn < nnn + Tnn; nn += Tn) {
-                /*        for (int n = nn; n < nn + Tn; n++) {
-                cout << "i-n" << n << " " << nn+Tn << "\n";
-                sum[n] = 0;
-                }*/
+                //for (int n = nn; n < nn + Tn; n++) {
+                //    cout << "i-n" << n << " " << nn+Tn << "\n";
+                //    sum[n] = 0;
+                //}
                 for (int ii = iii; ii < iii + Tii; ii += Ti) {
                     //total_calc++;
 
