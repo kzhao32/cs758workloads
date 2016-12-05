@@ -79,7 +79,7 @@ void fill_classifier(VTYPE (&synapse)[Nn][Ni], VTYPE (&neuron_i)[Ni]) {
     }
 }
        
-void* classifier_layer_blocked(void* arg) {
+void* classifier_layer_blocked_pthread(void* arg) {
     int threadId = *(int*) arg;
     delete (int*)arg;
     int total_calc=0;
@@ -122,6 +122,56 @@ void* classifier_layer_blocked(void* arg) {
     //calc += total_calc;
 }
 
+int classifier_layer_blocked(VTYPE (&synapse)[Nn][Ni], VTYPE (&neuron_i)[Ni], 
+                              VTYPE (&neuron_n)[Nn]) {
+    int total_calc=0;
+    VTYPE sum[Nn]={0};
+    for (int nnn = 0; nnn < Nn; nnn += Tnn) { // tiling for output neurons;
+        for (int iii = 0; iii < Ni; iii += Tii) { // tiling for input neurons;
+            for (int nn = nnn; nn < nnn + Tnn; nn += Tn) {
+                //for (int n = nn; n < nn + Tn; n++) {
+                //    cout << "i-n" << n << " " << nn+Tn << "\n";
+                //    sum[n] = 0;
+                //}
+                for (int ii = iii; ii < iii + Tii; ii += Ti) {
+                    //total_calc++;
+
+                    // — Original code —
+                    for (int n = nn; n < nn + Tn; n++) {
+                        VTYPE sum_sc=0;
+                        for (int i = ii; i < ii + Ti; i++) {
+                            sum_sc += (synapse[n][i] * neuron_i[i])>>1;
+                            //sum_sc += synapse[n][i] * i;
+                        }
+                        sum[n]+=sum_sc>>1;
+                    }
+                }
+            }
+        }
+        for (int nn = nnn; nn < nnn + Tnn; nn++) {
+            neuron_n[nn] = sigmoid(sum[nn]);
+        }
+    }
+    return total_calc;
+}
+
+void* classifier_layer_pthread(void* arg) {
+    int threadId = *(int*) arg;
+    delete (int*)arg;
+    //int total_calc=0;
+    // — Original code —
+    //for (int n = 0; n < Nn; n++) {
+    for (int n = (Nn/NumProcs)*threadId; n < Nn && n < (Nn/NumProcs)*(threadId+1); n++) {
+        VTYPE temp=0;
+        for (int i = 0; i < Ni; i++) {
+            temp += (synapse[n][i] * neuron_i[i])>>1;
+        }
+        neuron_n[n] = sigmoid(temp);
+        //    total_calc++;
+    }
+    //return total_calc;
+}
+
 int classifier_layer(VTYPE (&synapse)[Nn][Ni], VTYPE (&neuron_i)[Ni], VTYPE (&neuron_n)[Nn]) {
     int total_calc=0;
     // — Original code —
@@ -139,7 +189,7 @@ int classifier_layer(VTYPE (&synapse)[Nn][Ni], VTYPE (&neuron_i)[Ni], VTYPE (&ne
 int main(int argc, char** argv) {
     fill_classifier(synapse,neuron_i);
     
-    if (argc==2) {
+    if (argc==2 || argc==3) {
         //omp_set_num_threads(argv[1]);
         NumProcs = atoi(argv[1]);
     }
@@ -180,7 +230,7 @@ int main(int argc, char** argv) {
             // ************************************************************
             if (pthread_create(&threads[threadIndex], 
                 NULL, 
-                &classifier_layer_blocked, 
+                &classifier_layer_pthread, 
                 new int(threadIndex))) {
                 printf("Could not create thread %d\n", threadIndex);
                 return EXIT_FAILURE;
@@ -210,7 +260,7 @@ int main(int argc, char** argv) {
             // ************************************************************
             if (pthread_create(&threads[threadIndex], 
                 NULL, 
-                &classifier_layer_blocked, 
+                &classifier_layer_pthread, 
                 new int(threadIndex))) {
                 printf("Could not create thread %d\n", threadIndex);
                 return EXIT_FAILURE;

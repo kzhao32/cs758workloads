@@ -59,7 +59,7 @@ void fill_pooling(VTYPE (&neuron_i)[NYPAD][NXPAD][Ni]) {
     }
 }
 
-int pooling_layer_blocked(VTYPE (&neuron_i)[NYPAD][NXPAD][Ni],
+int pooling_layer_blocked_omp(VTYPE (&neuron_i)[NYPAD][NXPAD][Ni],
     VTYPE (&neuron_n)[NYSCL][NXSCL][Ni]) {
     int c=0;
 
@@ -117,6 +117,101 @@ int pooling_layer_blocked(VTYPE (&neuron_i)[NYPAD][NXPAD][Ni],
     return c;
 }
 
+int pooling_layer_blocked(VTYPE (&neuron_i)[NYPAD][NXPAD][Ni],
+                          VTYPE (&neuron_n)[NYSCL][NXSCL][Ni]) {
+    int c=0;
+
+    VTYPE value[Ni]={0};
+    for (int yy = 0; yy < Ny; yy += Ty) {
+        for (int xx = 0; xx < Nx; xx += Tx) {
+            for (int iii = 0; iii < Ni; iii += Tii) {
+                // — Original code — (excluding ii loop)
+                int yout = yy/Sy;
+                for (int y = yy; y < yy + Ty; y += Sy) {
+                    int xout = xx/Sx;
+                    for (int x = xx; x < xx + Tx; x += Sx) {
+
+                        for (int ii = iii; ii < iii + Tii; ii += Ti) {
+                            for (int i = ii; i < ii + Ti; i++) {
+                                value[i] = 0;
+                            }
+
+                            for (int ky = 0; ky < Ky; ky++) {
+                                for (int kx = 0; kx < Kx; kx++) {
+                                    //c++;
+                                    for (int i = ii; i < ii + Ti; i++) {
+                                        #ifdef AVG
+                                            value[i] += neuron_i[ky + y][kx + x][i];
+                                        #else
+                                            value[i] = max(value[i], neuron_i[ky + y][kx + x][i]);
+                                        #endif
+                                    }
+                                }
+                            }
+
+                            for (int i = ii; i < ii + Ti; i++) {
+                                #ifdef AVG
+                                    neuron_n[yout][xout][i] = value[i] / (Kx * Ky);
+                                #else
+                                    neuron_n[yout][xout][i] = value[i];
+                                #endif
+                            }
+                        }
+                        xout++;
+                    }
+                    yout++;
+                }
+            }
+        }
+    }
+    return c;
+}
+
+void pooling_layer_omp(VTYPE (&neuron_i)[NYPAD][NXPAD][Ni],
+                       VTYPE (&neuron_n)[NYSCL][NXSCL][Ni]) {
+                           
+    int x;
+    int i;
+    int ky;
+    int kx;
+    VTYPE value[Ni]={0};
+    // — Original code —
+    int yout = 0;
+    for (int y = 0; y < Ny; y += Sy) {
+        int xout = 0;
+        #pragma omp parallel for \
+            shared(neuron_i,neuron_n,yout,y,xout) \
+            private(x,i,ky,kx,value)
+        for (x = 0; x < Nx; x += Sx) {
+            for (i = 0; i < Ni; i++) {
+                value[i]=0;
+            }
+
+            for (ky = 0; ky < Ky; ky++) {
+                for (kx = 0; kx < Kx; kx++) {
+                    for (i = 0; i < Ni; i++) {
+                        #ifdef AVG
+                            value[i] += neuron_i[ky + y][kx + x][i];
+                        #else
+                            value[i] = max(value[i], neuron_i[ky + y][kx + x][i]);
+                        #endif
+                    }
+                }
+            }
+
+            for (int i = 0; i < Ni; i++) {
+                #ifdef AVG
+                    neuron_n[yout][xout][i] = value[i] / (Kx * Ky);
+                #else
+                    neuron_n[yout][xout][i] = value[i];
+                #endif
+            }
+            xout++;
+        }
+        yout++;
+    }
+}
+
 void pooling_layer(VTYPE (&neuron_i)[NYPAD][NXPAD][Ni],
     VTYPE (&neuron_n)[NYSCL][NXSCL][Ni]) {
     VTYPE value[Ni]={0};
@@ -162,7 +257,7 @@ int main(int argc, char** argv) {
 
     fill_pooling(*neuron_i);
     
-    if (argc==2) {
+    if (argc==2 || argc==3) {
         omp_set_num_threads(atoi(argv[1]));
         //NumProcs = atoi(argv[1]);
     }
@@ -180,10 +275,11 @@ int main(int argc, char** argv) {
         //  } else if(argc==2 && string(argv[1])=="perf") {
     } else if(argc==3) {
 
-        pooling_layer_blocked(*neuron_i,*neuron_n);
+        pooling_layer_omp(*neuron_i,*neuron_n);
         cout << "Perf Run Complete\n";
     } else {
-        int calc = pooling_layer_blocked(*neuron_i,*neuron_n);
+        int calc = 0;
+        pooling_layer_omp(*neuron_i,*neuron_n);
         pooling_layer(*neuron_i,*neuron_n2);
 
         if(calc > 0) {

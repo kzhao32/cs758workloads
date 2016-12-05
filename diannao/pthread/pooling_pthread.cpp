@@ -96,9 +96,9 @@ void fill_pooling(VTYPE (&neuron_i)[NYPAD][NXPAD][Ni]) {
     }
 }
 
-int pooling_layer_blocked(int threadId, 
-                            VTYPE (&neuron_i)[NYPAD][NXPAD][Ni],
-                            VTYPE (&neuron_n)[NYSCL][NXSCL][Ni]) {
+int pooling_layer_blocked_pthread(int threadId, 
+                                  VTYPE (&neuron_i)[NYPAD][NXPAD][Ni],
+                                  VTYPE (&neuron_n)[NYSCL][NXSCL][Ni]) {
     
     //VTYPE (&neuron_i)[NYPAD][NXPAD][Ni] = *neuron_i;
     //VTYPE (&neuron_n)[NYSCL][NXSCL][Ni] = *neuron_n;
@@ -116,19 +116,21 @@ int pooling_layer_blocked(int threadId,
                 // — Original code — (excluding ii loop)
                 int yout = yy/Sy;
                 for (int y = yy; y < yy + Ty; y += Sy) {
-                    int xout = xx/Sx;
-                    // if moving parallel for here, then use barrier and single before incrementing xout
+                    //int xout = xx/Sx;
+                    // if moving parallel for here, then update xout accordingly
                     // cant move parallel for loop here because xout should be set before future iterations start
-                    for (int x = xx; x < xx + Tx; x += Sx) {
+                    //for (int x = xx; x < xx + Tx; x += Sx) {
+                    for (int x = xx + (Tx/NumProcs)*Sx*threadId; x < xx + Tx && x < xx + (Tx/NumProcs)*Sx*(threadId+1); x += Sx) {
                         //#pragma omp parallel for \
                             shared(neuron_i,neuron_n,yout,y,xout,x) \
                             private(ii,i,ky,kx,value)
-                        //for (ii = iii; ii < iii + Tii; ii += Ti) {
-                        for (ii = iii + (Tii/NumProcs)*threadId; ii < iii + Tii && ii < iii + (Tii/NumProcs)*(threadId+1); ii += Ti) {
+                        int xout = xx/Sx + (x-xx)/Sx;
+                        for (ii = iii; ii < iii + Tii; ii += Ti) {
+                        //for (ii = iii + (Tii/NumProcs)*threadId; ii < iii + Tii && ii < iii + (Tii/NumProcs)*(threadId+1); ii += Ti) {
                             for (i = ii; i < ii + Ti; i++) {
                                 value[i] = 0;
                             }
-                            Barrier();
+                            
                             for (ky = 0; ky < Ky; ky++) {
                                 for (kx = 0; kx < Kx; kx++) {
                                     //c++;
@@ -142,19 +144,15 @@ int pooling_layer_blocked(int threadId,
                                 }
                             }
 
-                            Barrier();
-                            if (threadId == 0) {
-                                for (i = ii; i < ii + Ti; i++) {
-                                    #ifdef AVG
-                                        neuron_n[yout][xout][i] = value[i] / (Kx * Ky);
-                                    #else
-                                        neuron_n[yout][xout][i] = value[i];
-                                    #endif
-                                }
+                            for (i = ii; i < ii + Ti; i++) {
+                                #ifdef AVG
+                                    neuron_n[yout][xout][i] = value[i] / (Kx * Ky);
+                                #else
+                                    neuron_n[yout][xout][i] = value[i];
+                                #endif
                             }
-                            Barrier();
                         }
-                        xout++;
+                        //xout++;
                     }
                     yout++;
                 }
@@ -167,12 +165,116 @@ int pooling_layer_blocked(int threadId,
 void* pooling_layer_blocked_thread_wrapper(void* arg) {
     int threadId = *(int*) arg;
     delete (int*)arg;
-    pooling_layer_blocked(threadId, *neuron_i, *neuron_n);
+    pooling_layer_blocked_pthread(threadId, *neuron_i, *neuron_n);
+}
+
+int pooling_layer_blocked(VTYPE (&neuron_i)[NYPAD][NXPAD][Ni],
+                          VTYPE (&neuron_n)[NYSCL][NXSCL][Ni]) {
+    int c=0;
+
+    VTYPE value[Ni]={0};
+    for (int yy = 0; yy < Ny; yy += Ty) {
+        for (int xx = 0; xx < Nx; xx += Tx) {
+            for (int iii = 0; iii < Ni; iii += Tii) {
+                // — Original code — (excluding ii loop)
+                int yout = yy/Sy;
+                for (int y = yy; y < yy + Ty; y += Sy) {
+                    int xout = xx/Sx;
+                    for (int x = xx; x < xx + Tx; x += Sx) {
+
+                        for (int ii = iii; ii < iii + Tii; ii += Ti) {
+                            for (int i = ii; i < ii + Ti; i++) {
+                                value[i] = 0;
+                            }
+
+                            for (int ky = 0; ky < Ky; ky++) {
+                                for (int kx = 0; kx < Kx; kx++) {
+                                    //c++;
+                                    for (int i = ii; i < ii + Ti; i++) {
+                                        #ifdef AVG
+                                            value[i] += neuron_i[ky + y][kx + x][i];
+                                        #else
+                                            value[i] = max(value[i], neuron_i[ky + y][kx + x][i]);
+                                        #endif
+                                    }
+                                }
+                            }
+
+                            for (int i = ii; i < ii + Ti; i++) {
+                                #ifdef AVG
+                                    neuron_n[yout][xout][i] = value[i] / (Kx * Ky);
+                                #else
+                                    neuron_n[yout][xout][i] = value[i];
+                                #endif
+                            }
+                        }
+                        xout++;
+                    }
+                    yout++;
+                }
+            }
+        }
+    }
+    return c;
+}
+
+void pooling_layer_pthread(int threadId, 
+                           VTYPE (&neuron_i)[NYPAD][NXPAD][Ni],
+                           VTYPE (&neuron_n)[NYSCL][NXSCL][Ni]) {
+    VTYPE value[Ni]={0};
+    int x;
+    int ii;
+    int i;
+    int ky;
+    int kx;
+    // — Original code —
+    int yout = 0;
+    for (int y = 0; y < Ny; y += Sy) {
+        int xout = 0;        
+        //for (int x = 0; x < Nx; x += Sx) {
+        for (x = (Nx/NumProcs)*threadId; x < Nx && x < (Nx/NumProcs)*(threadId+1); x += Sx) {
+            xout = x / Sx;
+            for (int i = 0; i < Ni; i++) {
+                value[i]=0;
+            }
+            //Barrier();
+            for (ky = 0; ky < Ky; ky++) {
+                for (kx = 0; kx < Kx; kx++) {
+                    for (i = 0; i < Ni; i++) {
+                        #ifdef AVG
+                            value[i] += neuron_i[ky + y][kx + x][i];
+                        #else
+                            value[i] = max(value[i], neuron_i[ky + y][kx + x][i]);
+                        #endif
+                    }
+                }
+            }
+            //Barrier();
+            //if (threadId == 0) {
+                for (i = 0; i < Ni; i++) {
+                    #ifdef AVG
+                        neuron_n[yout][xout][i] = value[i] / (Kx * Ky);
+                    #else
+                        neuron_n[yout][xout][i] = value[i];
+                    #endif
+                }
+                //xout++;
+            //}
+            //Barrier();
+        }
+        yout++;
+    }
+}
+
+void* pooling_layer_thread_wrapper(void* arg) {
+    int threadId = *(int*) arg;
+    delete (int*)arg;
+    pooling_layer_pthread(threadId, *neuron_i, *neuron_n);
 }
 
 void pooling_layer(VTYPE (&neuron_i)[NYPAD][NXPAD][Ni],
-    VTYPE (&neuron_n)[NYSCL][NXSCL][Ni]) {
-    VTYPE value[Ni]={0};
+                   VTYPE (&neuron_n)[NYSCL][NXSCL][Ni]) {
+                   VTYPE value[Ni]={0};
     // — Original code —
     int yout = 0;
     for (int y = 0; y < Ny; y += Sy) {
@@ -215,7 +317,7 @@ int main(int argc, char** argv) {
 
     fill_pooling(*neuron_i);
     
-    if (argc==2) {
+    if (argc==2 || argc==3) {
         //omp_set_num_threads(atoi(argv[1]));
         NumProcs = atoi(argv[1]);
     }
