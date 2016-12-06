@@ -110,7 +110,8 @@ int pooling_layer_blocked_pthread(int threadId,
     int ky;
     int kx;
     VTYPE value[Ni]={0};
-    for (int yy = 0; yy < Ny; yy += Ty) {
+    //for (int yy = 0; yy < Ny; yy += Ty) {
+    for (int yy = Ny/NumProcs*threadId; yy < Ny && yy < Ny/NumProcs*(threadId+1); yy += Ty) {
         for (int xx = 0; xx < Nx; xx += Tx) {
             for (int iii = 0; iii < Ni; iii += Tii) {
                 // — Original code — (excluding ii loop)
@@ -119,8 +120,8 @@ int pooling_layer_blocked_pthread(int threadId,
                     //int xout = xx/Sx;
                     // if moving parallel for here, then update xout accordingly
                     // cant move parallel for loop here because xout should be set before future iterations start
-                    //for (int x = xx; x < xx + Tx; x += Sx) {
-                    for (int x = xx + (Tx/NumProcs)*Sx*threadId; x < xx + Tx && x < xx + (Tx/NumProcs)*Sx*(threadId+1); x += Sx) {
+                    for (int x = xx; x < xx + Tx; x += Sx) {
+                    //for (int x = xx + (Tx/NumProcs)*Sx*threadId; x < xx + Tx && x < xx + (Tx/NumProcs)*Sx*(threadId+1); x += Sx) {
                         //#pragma omp parallel for \
                             shared(neuron_i,neuron_n,yout,y,xout,x) \
                             private(ii,i,ky,kx,value)
@@ -229,10 +230,12 @@ void pooling_layer_pthread(int threadId,
     int kx;
     // — Original code —
     int yout = 0;
-    for (int y = 0; y < Ny; y += Sy) {
-        int xout = 0;        
-        //for (int x = 0; x < Nx; x += Sx) {
-        for (x = (Nx/NumProcs)*threadId; x < Nx && x < (Nx/NumProcs)*(threadId+1); x += Sx) {
+    int xout = 0;
+    //for (int y = 0; y < Ny; y += Sy) {
+    for (int y = Ny/NumProcs*threadId; y < Ny && y < Ny/NumProcs*(threadId+1); y += Sy) {
+        yout = y / Sy;   
+        for (int x = 0; x < Nx; x += Sx) {
+        //for (x = (Nx/NumProcs)*threadId; x < Nx && x < (Nx/NumProcs)*(threadId+1); x += Sx) {
             xout = x / Sx;
             for (int i = 0; i < Ni; i++) {
                 value[i]=0;
@@ -262,7 +265,7 @@ void pooling_layer_pthread(int threadId,
             //}
             //Barrier();
         }
-        yout++;
+        //yout++;
     }
 }
 
@@ -318,8 +321,8 @@ int main(int argc, char** argv) {
     fill_pooling(*neuron_i);
     
     if (argc==2 || argc==3) {
-        //omp_set_num_threads(atoi(argv[1]));
-        NumProcs = atoi(argv[1]);
+        //omp_set_num_threads(atoi(argv[2]));
+        NumProcs = atoi(argv[2]);
     }
     
     // Initialize array of thread structures

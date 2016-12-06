@@ -84,13 +84,9 @@ void* classifier_layer_blocked_pthread(void* arg) {
     delete (int*)arg;
     int total_calc=0;
     VTYPE sum[Nn]={0};
-    for (int nnn = 0; nnn < Nn; nnn += Tnn) { // tiling for output neurons;
-        // line below is original without pthreads
-        //for (int iii = 0; iii < Ni; iii += Tii) { // tiling for input neurons;
-        // line below is bad for cache locality
-        //for (int iii = (Ni/Tii)*threadId; iii < Ni && iii < (Ni/Tii)*(threadId + 1); iii += Tii * NumProcs) { // tiling for input neurons;
-        // line below may be off by a few if Ni is not divisible by NumProcs
-        for (int iii = (Ni/NumProcs)*threadId; iii < Ni && iii < (Ni/NumProcs)*(threadId+1); iii += Tii) { // tiling for input neurons;
+    //for (int nnn = 0; nnn < Nn; nnn += Tnn) { // tiling for output neurons;
+    for (int nnn = Nn/NumProcs*threadId; nnn < Nn && nnn < Nn/NumProcs*(threadId+1); nnn += Tnn) { // tiling for output neurons;
+        for (int iii = 0; iii < Ni; iii += Tii) { // tiling for input neurons;
             for (int nn = nnn; nn < nnn + Tnn; nn += Tn) {
                 //for (int n = nn; n < nn + Tn; n++) {
                 //    cout << "i-n" << n << " " << nn+Tn << "\n";
@@ -111,13 +107,9 @@ void* classifier_layer_blocked_pthread(void* arg) {
                 }
             }
         }
-        Barrier();
-        if (threadId == 0) {
-            for (int nn = nnn; nn < nnn + Tnn; nn++) {
-                neuron_n[nn] = sigmoid(sum[nn]);
-            }
+        for (int nn = nnn; nn < nnn + Tnn; nn++) {
+            neuron_n[nn] = sigmoid(sum[nn]);
         }
-        Barrier();
     }
     //calc += total_calc;
 }
@@ -190,8 +182,8 @@ int main(int argc, char** argv) {
     fill_classifier(synapse,neuron_i);
     
     if (argc==2 || argc==3) {
-        //omp_set_num_threads(argv[1]);
-        NumProcs = atoi(argv[1]);
+        //omp_set_num_threads(argv[2]);
+        NumProcs = atoi(argv[2]);
     }
     
     // Initialize array of thread structures
@@ -228,7 +220,7 @@ int main(int argc, char** argv) {
             //  p3: start routine, where new thread begins
             //  p4: arguments to the thread
             // ************************************************************
-            if (atoi(argv[1]) == 0) {
+            if (atoi(argv[1]) % 2 == 0) {
                 if (pthread_create(&threads[threadIndex], 
                     NULL, 
                     &classifier_layer_pthread, 
@@ -254,46 +246,19 @@ int main(int argc, char** argv) {
                 return -1;
             }
         }
-        //int calc = classifier_layer_blocked();
-        if(calc > 0) {
-            cout << "calc: " << calc << "\n";
+        
+        if (atoi(argv[1]) >= 2) {
+            classifier_layer(synapse,neuron_i,neuron_n2);
+            compare(neuron_n,neuron_n2,Nn);
+            cout << "mults: " << Nn*Ni <<  " sigmoids: " << Nn << "\n";
         }
+        //int calc = classifier_layer_blocked();
+        //if(calc > 0) {
+        //    cout << "calc: " << calc << "\n";
+        //}
         //cout << "Perf Run Complete\n";
     } else {
-        for (threadIndex = 0; threadIndex < NumProcs; ++threadIndex) {
-            // ************************************************************
-            // pthread_create takes 4 parameters
-            //  p1: threads(output)
-            //  p2: thread attribute
-            //  p3: start routine, where new thread begins
-            //  p4: arguments to the thread
-            // ************************************************************
-            if (pthread_create(&threads[threadIndex], 
-                NULL, 
-                &classifier_layer_pthread, 
-                new int(threadIndex))) {
-                printf("Could not create thread %d\n", threadIndex);
-                return EXIT_FAILURE;
-            }
-        }
-        
-        // Wait for each of the threads to terminate with join
-        for (threadIndex = 0; threadIndex < NumProcs; ++threadIndex) {
-            if (pthread_join(threads[threadIndex], NULL)) {
-                printf("Could not join thread\n");
-                return -1;
-            }
-        }
-        
-        //int calc  = classifier_layer_blocked(synapse,neuron_i,neuron_n);
-        //int calc  = classifier_layer_blocked();
-        int calc2 = classifier_layer(synapse,neuron_i,neuron_n2);
-
-        cout << "C1: " << calc << " C2: " << calc2 << "\n";
-
-        compare(neuron_n,neuron_n2,Nn);
-
-        cout << "mults: " << Nn*Ni <<  " sigmoids: " << Nn << "\n";
+        cout << "incorrect usage\n";
     }
     stopTimer(&timer); // End the time measuremnt here since the algorithm ended
     end_roi();

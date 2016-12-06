@@ -177,8 +177,9 @@ void pooling_layer_omp(VTYPE (&neuron_i)[NYPAD][NXPAD][Ni],
     VTYPE value[Ni]={0};
     // — Original code —
     int yout = 0;
+    int xout = 0;
     for (int y = 0; y < Ny; y += Sy) {
-        int xout = 0;
+        
         #pragma omp parallel for \
             shared(neuron_i,neuron_n,yout,y,xout) \
             private(x,i,ky,kx,value)
@@ -206,9 +207,9 @@ void pooling_layer_omp(VTYPE (&neuron_i)[NYPAD][NXPAD][Ni],
                     neuron_n[yout][xout][i] = value[i];
                 #endif
             }
-            xout++;
+            //xout++;
         }
-        yout++;
+        //yout++;
     }
 }
 
@@ -258,8 +259,8 @@ int main(int argc, char** argv) {
     fill_pooling(*neuron_i);
     
     if (argc==2 || argc==3) {
-        omp_set_num_threads(atoi(argv[1]));
-        //NumProcs = atoi(argv[1]);
+        omp_set_num_threads(atoi(argv[2]));
+        //NumProcs = atoi(argv[2]);
     }
 
     hwtimer_t timer;
@@ -274,13 +275,22 @@ int main(int argc, char** argv) {
 
         //  } else if(argc==2 && string(argv[1])=="perf") {
     } else if(argc==3) {
-        if (atoi(argv[1]) == 0) {
+        if (atoi(argv[1]) % 2 == 0) {
             pooling_layer_omp(*neuron_i,*neuron_n);
         } else {
             pooling_layer_blocked_omp(*neuron_i,*neuron_n);
         }
+        
         cout << "Perf Run Complete\n";
+        if (atoi(argv[1]) >= 2) {
+            pooling_layer(*neuron_i,*neuron_n2);
+            compare((VTYPE*)*neuron_n,(VTYPE*)*neuron_n2,NYSCL*NXSCL*Ni);
+            cout << "adds: " << NYSCL*NXSCL*Ni*Ky*Kx <<  "\n";
+            cout << "argc:" << argc << "\n";
+        }
     } else {
+        cout << "incorrect usage\n";
+        /*
         int calc = 0;
         pooling_layer_omp(*neuron_i,*neuron_n);
         pooling_layer(*neuron_i,*neuron_n2);
@@ -292,6 +302,7 @@ int main(int argc, char** argv) {
         compare((VTYPE*)*neuron_n,(VTYPE*)*neuron_n2,NYSCL*NXSCL*Ni);
         cout << "adds: " << NYSCL*NXSCL*Ni*Ky*Kx <<  "\n";
         cout << "argc:" << argc << "\n";
+        */
         //  cout << "mult-block:  " << calc.first   << " sigmoid-block: " << calc.second  << "\n";
         //  cout << "mult-orig:  "  << calc2.first  << " sigmoid-orig:  " << calc2.second << "\n";
         //

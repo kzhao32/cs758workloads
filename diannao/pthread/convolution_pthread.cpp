@@ -205,7 +205,7 @@ std::pair<int,int> convolution_layer_blocked_pthread(
         shared(synapse,neuron_i,neuron_n) \
         private(yy,xx,nnn,yout,y,xout,x,nn,n,ky,kx,ii,i)
     //for (yy = 0; yy < Ny; yy += Ty) {
-    for (yy = (Ny/NumProcs)*Ty*threadId; yy < Ny && yy < (Ny/NumProcs)*Ty*(threadId+1); yy += Ty) {         
+    for (yy = (Ny/NumProcs)*threadId; yy < Ny && yy < (Ny/NumProcs)*(threadId+1); yy += Ty) {         
         for (xx = 0; xx < Ny; xx += Tx) {
             for (nnn = 0; nnn < Nn; nnn += Tnn) {
                 // — Original code — (excluding nn, ii loops)
@@ -358,7 +358,7 @@ std::pair<int,int> convolution_layer_pthread(
         shared(synapse,neuron_i,neuron_n) \
         private(y,xout,x,nn,n,ky,kx,i)
     //for (y = 0; y < Ny; y += Sy) { // tiling for y;
-    for (y = (Ny/NumProcs)*Sy*threadId; y < Ny && y < (Ny/NumProcs)*Sy*(threadId+1); y += Sy) { 
+    for (y = (Ny/NumProcs)*threadId; y < Ny && y < (Ny/NumProcs)*(threadId+1); y += Sy) { 
         xout = 0;
         for (x = 0; x < Ny; x += Sx) { // tiling for x;
             for (nn = 0; nn < Nn; nn += Tn) {
@@ -466,8 +466,8 @@ int main(const int argc, const char** argv) {
 #endif
 
     if (argc==2 || argc==3) {
-        //omp_set_num_threads(atoi(argv[1]));
-        NumProcs = atoi(argv[1]);
+        //omp_set_num_threads(atoi(argv[2]));
+        NumProcs = atoi(argv[2]);
     }
     
     // Initialize array of thread structures

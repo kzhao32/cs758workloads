@@ -413,8 +413,8 @@ int main(const int argc, const char** argv) {
 #endif
 
     if (argc==2 || argc==3) {
-        omp_set_num_threads(atoi(argv[1]));
-        //NumProcs = atoi(argv[1]);
+        omp_set_num_threads(atoi(argv[2]));
+        //NumProcs = atoi(argv[2]);
     }
     
     hwtimer_t timer;
@@ -428,25 +428,25 @@ int main(const int argc, const char** argv) {
         //  } else if(argc==2 && string(argv[1])=="perf") {
     } else if(argc==3) {
         //auto calc  = convolution_layer_blocked(*synapse,*neuron_i,*neuron_n);
-        if (atoi(argv[1]) == 0) {
-            auto calc  = convolution_layer_omp(*synapse,*neuron_i,*neuron_n);
+        std::pair<int,int> calc;
+        if (atoi(argv[1]) % 2 == 0) {
+            calc  = convolution_layer_omp(*synapse,*neuron_i,*neuron_n);
         } else {
-            auto calc  = convolution_layer_blocked_omp(*synapse,*neuron_i,*neuron_n);
+            calc  = convolution_layer_blocked_omp(*synapse,*neuron_i,*neuron_n);
+        }
+        if (atoi(argv[1]) >= 2) {
+            auto calc2 = convolution_layer(*synapse,*neuron_i,*neuron_n2);
+            if(calc.first!=0) {
+                cout << "blocks=" << calc.first << "\n";
+            }
+            compare((VTYPE*)*neuron_n,(VTYPE*)*neuron_n2,NYSCL*NXSCL*Nn);
+            int n_outputs= Ny/Sy * Ny/Sx * Nn;
+            cout << "mults: " << n_outputs*Ni*Kx*Ky << " sigmoids: "  << n_outputs << "\n";
+            cout << "argc: " << argc << "\n";
         }
         //cout << "Perf Run Complete\n";
     } else {
-        cout << "argc: " << argc << "\n";
-
-        //auto calc  = convolution_layer_blocked(*synapse,*neuron_i,*neuron_n);
-        auto calc  = convolution_layer_omp(*synapse,*neuron_i,*neuron_n);
-        auto calc2 = convolution_layer(*synapse,*neuron_i,*neuron_n2);
-        if(calc.first!=0) {
-            cout << "blocks=" << calc.first << "\n";
-        }
-        compare((VTYPE*)*neuron_n,(VTYPE*)*neuron_n2,NYSCL*NXSCL*Nn);
-        int n_outputs= Ny/Sy * Ny/Sx * Nn;
-        cout << "mults: " << n_outputs*Ni*Kx*Ky << " sigmoids: "  << n_outputs << "\n";
-        cout << "argc: " << argc << "\n";
+        cout << "incorrect usage\n";
     }
     stopTimer(&timer); // End the time measuremnt here since the algorithm ended
     end_roi();

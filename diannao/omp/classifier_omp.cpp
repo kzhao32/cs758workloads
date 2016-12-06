@@ -44,16 +44,18 @@ int classifier_layer_blocked_omp(VTYPE (&synapse)[Nn][Ni], VTYPE (&neuron_i)[Ni]
                                  VTYPE (&neuron_n)[Nn]) {
     int total_calc=0;
     VTYPE sum[Nn]={0};
+    int nnn;
     int iii;
     int nn;
     int ii;
     int n;
+    int i;
     VTYPE sum_sc;
     //cout << "Ni = " << Ni << "; Tii = " << Tii << "; Tn = " << Tn << "; nn = " << nn << endl;
-    for (int nnn = 0; nnn < Nn; nnn += Tnn) { // tiling for output neurons;
-        #pragma omp parallel for \
-            shared(nnn,sum,synapse,neuron_i) \
-            private(iii,nn,ii,n,sum_sc)
+    #pragma omp parallel for \
+        shared(sum,synapse,neuron_i) \
+        private(nnn,iii,nn,ii,n,sum_sc,i)
+    for (nnn = 0; nnn < Nn; nnn += Tnn) { // tiling for output neurons;
         for (iii = 0; iii < Ni; iii += Tii) { // tiling for input neurons;
             for (nn = nnn; nn < nnn + Tnn; nn += Tn) {
                 /*        for (int n = nn; n < nn + Tn; n++) {
@@ -66,7 +68,7 @@ int classifier_layer_blocked_omp(VTYPE (&synapse)[Nn][Ni], VTYPE (&neuron_i)[Ni]
                     // — Original code —
                     for (n = nn; n < nn + Tn; n++) {
                         sum_sc=0;
-                        for (int i = ii; i < ii + Ti; i++) {
+                        for (i = ii; i < ii + Ti; i++) {
                             sum_sc += (synapse[n][i] * neuron_i[i])>>1;
                             //sum_sc += synapse[n][i] * i;
                         }
@@ -75,7 +77,7 @@ int classifier_layer_blocked_omp(VTYPE (&synapse)[Nn][Ni], VTYPE (&neuron_i)[Ni]
                 }
             }
         }
-        for (int nn = nnn; nn < nnn + Tnn; nn++) {
+        for (nn = nnn; nn < nnn + Tnn; nn++) {
             neuron_n[nn] = sigmoid(sum[nn]);
         }
     }
@@ -155,8 +157,8 @@ int main(int argc, char** argv) {
     fill_classifier(synapse,neuron_i);
     
     if (argc==2 || argc==3) {
-        omp_set_num_threads(atoi(argv[1]));
-        //NumProcs = atoi(argv[1]);
+        omp_set_num_threads(atoi(argv[2]));
+        //NumProcs = atoi(argv[2]);
     }
     
     hwtimer_t timer;
@@ -168,25 +170,24 @@ int main(int argc, char** argv) {
     if(argc==4) {
         // } else if(argc==2 && string(argv[1])=="perf") {
     } else if(argc==3) {
-        int calc;
-        if (atoi(argv[1]) == 0) {
-            calc = classifier_layer_omp(synapse,neuron_i,neuron_n);
+        //int calc;
+        if (atoi(argv[1]) % 2 == 0) {
+            classifier_layer_omp(synapse,neuron_i,neuron_n);
         } else {
-            calc = classifier_layer_blocked_omp(synapse,neuron_i,neuron_n);
+            classifier_layer_blocked_omp(synapse,neuron_i,neuron_n);
         }
-        if(calc > 0) {
-            cout << "calc: " << calc << "\n";
+        if (atoi(argv[1]) >= 2) {
+            classifier_layer(synapse,neuron_i,neuron_n2);
+            // doesnt seem to work for classifier since all 0
+            compare(neuron_n,neuron_n2,Nn);
+            cout << "mults: " << Nn*Ni <<  " sigmoids: " << Nn << "\n";
         }
+        //if(calc > 0) {
+        //    cout << "calc: " << calc << "\n";
+        //}
         //cout << "Perf Run Complete\n";
     } else {
-        int calc  = classifier_layer_omp(synapse,neuron_i,neuron_n);
-        int calc2 = classifier_layer(synapse,neuron_i,neuron_n2);
-
-        cout << "C1: " << calc << " C2: " << calc2 << "\n";
-
-        compare(neuron_n,neuron_n2,Nn);
-
-        cout << "mults: " << Nn*Ni <<  " sigmoids: " << Nn << "\n";
+        cout << "incorrect usage\n";
     }
     stopTimer(&timer); // End the time measuremnt here since the algorithm ended
     end_roi();
