@@ -168,13 +168,18 @@ int main(int argc, char** argv) {
     if(argc==4) {
         // } else if(argc==2 && string(argv[1])=="perf") {
     } else if(argc==3) {
-        int calc = classifier_layer_blocked_omp(synapse,neuron_i,neuron_n);
+        int calc;
+        if (atoi(argv[1]) == 0) {
+            calc = classifier_layer_omp(synapse,neuron_i,neuron_n);
+        } else {
+            calc = classifier_layer_blocked_omp(synapse,neuron_i,neuron_n);
+        }
         if(calc > 0) {
             cout << "calc: " << calc << "\n";
         }
         //cout << "Perf Run Complete\n";
     } else {
-        int calc  = classifier_layer_blocked_omp(synapse,neuron_i,neuron_n);
+        int calc  = classifier_layer_omp(synapse,neuron_i,neuron_n);
         int calc2 = classifier_layer(synapse,neuron_i,neuron_n2);
 
         cout << "C1: " << calc << " C2: " << calc2 << "\n";

@@ -228,12 +228,22 @@ int main(int argc, char** argv) {
             //  p3: start routine, where new thread begins
             //  p4: arguments to the thread
             // ************************************************************
-            if (pthread_create(&threads[threadIndex], 
-                NULL, 
-                &classifier_layer_pthread, 
-                new int(threadIndex))) {
-                printf("Could not create thread %d\n", threadIndex);
-                return EXIT_FAILURE;
+            if (atoi(argv[1]) == 0) {
+                if (pthread_create(&threads[threadIndex], 
+                    NULL, 
+                    &classifier_layer_pthread, 
+                    new int(threadIndex))) {
+                    printf("Could not create thread %d\n", threadIndex);
+                    return EXIT_FAILURE;
+                }
+            } else {
+                if (pthread_create(&threads[threadIndex], 
+                    NULL, 
+                    &classifier_layer_blocked_pthread, 
+                    new int(threadIndex))) {
+                    printf("Could not create thread %d\n", threadIndex);
+                    return EXIT_FAILURE;
+                }
             }
         }
         

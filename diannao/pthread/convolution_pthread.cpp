@@ -506,12 +506,22 @@ int main(const int argc, const char** argv) {
             //  p3: start routine, where new thread begins
             //  p4: arguments to the thread
             // ************************************************************
-            if (pthread_create(&threads[threadIndex], 
-                NULL, 
-                &convolution_layer_thread_wrapper, //convolution_layer_blocked_thread_wrapper doesnt seem to give speedup
-                new int(threadIndex))) {
-                printf("Could not create thread %d\n", threadIndex);
-                return EXIT_FAILURE;
+            if (atoi(argv[1]) == 0) {
+                if (pthread_create(&threads[threadIndex], 
+                    NULL, 
+                    &convolution_layer_thread_wrapper, //convolution_layer_blocked_thread_wrapper doesnt seem to give speedup
+                    new int(threadIndex))) {
+                    printf("Could not create thread %d\n", threadIndex);
+                    return EXIT_FAILURE;
+                }
+            } else {
+                if (pthread_create(&threads[threadIndex], 
+                    NULL, 
+                    &convolution_layer_blocked_thread_wrapper, //convolution_layer_blocked_thread_wrapper doesnt seem to give speedup
+                    new int(threadIndex))) {
+                    printf("Could not create thread %d\n", threadIndex);
+                    return EXIT_FAILURE;
+                }
             }
         }
         

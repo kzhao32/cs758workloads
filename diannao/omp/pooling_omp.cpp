@@ -274,8 +274,11 @@ int main(int argc, char** argv) {
 
         //  } else if(argc==2 && string(argv[1])=="perf") {
     } else if(argc==3) {
-
-        pooling_layer_omp(*neuron_i,*neuron_n);
+        if (atoi(argv[1]) == 0) {
+            pooling_layer_omp(*neuron_i,*neuron_n);
+        } else {
+            pooling_layer_blocked_omp(*neuron_i,*neuron_n);
+        }
         cout << "Perf Run Complete\n";
     } else {
         int calc = 0;

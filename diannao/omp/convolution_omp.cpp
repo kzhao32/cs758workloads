@@ -428,7 +428,11 @@ int main(const int argc, const char** argv) {
         //  } else if(argc==2 && string(argv[1])=="perf") {
     } else if(argc==3) {
         //auto calc  = convolution_layer_blocked(*synapse,*neuron_i,*neuron_n);
-        auto calc  = convolution_layer_omp(*synapse,*neuron_i,*neuron_n);
+        if (atoi(argv[1]) == 0) {
+            auto calc  = convolution_layer_omp(*synapse,*neuron_i,*neuron_n);
+        } else {
+            auto calc  = convolution_layer_blocked_omp(*synapse,*neuron_i,*neuron_n);
+        }
         //cout << "Perf Run Complete\n";
     } else {
         cout << "argc: " << argc << "\n";
