@@ -1,0 +1,29 @@
+
+InputVec: I[0, 1, 2, 3]#, 4, 5, 6, 7]
+InputVec: F[0, 1, 2, 3]#, 4, 5, 6, 7]
+
+M0 = Sub16x4(I0, F0)
+R0 = Abs16x4(M0)
+
+M1 = Sub16x4(I1, F1)
+R1 = Abs16x4(M1)
+
+M2 = Sub16x4(I2, F2)
+R2 = Abs16x4(M2)
+
+M3 = Sub16x4(I3, F3)
+R3 = Abs16x4(M3)
+
+#M4 = Sub16x4(I4, F4)
+#R4 = Abs16x4(M4)
+
+#M5 = Sub16x4(I5, F5)
+#R5 = Abs16x4(M5)
+
+#M6 = Sub16x4(I6, F6)
+#R6 = Abs16x4(M6)
+
+#M7 = Sub16x4(I7, F7)
+#R7 = Abs16x4(M7)
+
+OutputVec: R[0, 1, 2, 3]#, 4, 5, 6, 7]

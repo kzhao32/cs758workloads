@@ -1,0 +1,25 @@
+//////////////////////////////////////////////////////////
+//  Conv-Engine Workloads -- CPU and SOFTBRAIN Version  //
+//  Author: Vinay Gangadhar                             //
+//  Questions: vinay@cs.wisc.edu                        //
+//////////////////////////////////////////////////////////
+
+
+There are 2 folders -- 1) CPU version 2) Softbrain version
+For each version, there are 4 workloads in individual folder 
+
+1) CPU version
+-To compile and run each workload, go inside each workload folder and do make
+-To run, it uses default image sizes. You can specify inputs by looking for usage message
+-The targeted kernel is inside the same file as where the main function is called.
+-This can be seperated into a different file and has to be reflected in Makefile
+
+2)Softbrain Version
+-SB version follows similar organization
+-Extra elements are the SB version are the SB related kernel -- $(WORKLOAD_NAME)-sb.c
+-You also need to write the DFG for each workload seperately 
+
+If any questions contact, Tony Nowatzki or Vinay Gangadhar
+
+Good luck!!
+

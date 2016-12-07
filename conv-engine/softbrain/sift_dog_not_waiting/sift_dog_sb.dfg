@@ -1,0 +1,9 @@
+Input: I
+Input: F
+
+#M = Sub16x4(I, F)
+#R = Abs16x4(M)
+#R = LShf64(I, F)
+R = Add64(I, F)
+
+Output: R

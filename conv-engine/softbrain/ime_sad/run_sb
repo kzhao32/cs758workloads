@@ -1,0 +1,3 @@
+make ime_sad_sb
+spike --extension=softbrain $RISCV/riscv64-unknown-elf/bin/pk ime_sad_sb -x 20 -y 20 -d 1 -o output_sb.txt
+# cat output_sb.txt

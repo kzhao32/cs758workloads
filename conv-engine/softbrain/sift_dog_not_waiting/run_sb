@@ -1,0 +1,3 @@
+make sift_dog_sb
+spike --extension=softbrain $RISCV/riscv64-unknown-elf/bin/pk sift_dog_sb -x 9 -y 9 -o output_sb.txt
+# cat output_sb.txt

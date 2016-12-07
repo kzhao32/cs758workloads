@@ -1,0 +1,28 @@
+# for now, the stencil's length can be at most 13
+
+InputVec: I [0, 1, 2, 3]      # Original Image
+InputVec: F [0, 1, 2, 3, 4, 5, 6, 7]      # Filter 1
+
+M0 = Mul16x4(I0, F0)
+M1 = Mul16x4(I1, F1)
+M2 = Mul16x4(I2, F2)
+M3 = Mul16x4(I3, F3)
+
+T0 = Add16x4(M0, M2)
+T1 = Add16x4(M1, M3)
+
+S = Add16x4(T0, T1)
+R0 = Red16x4(S)
+
+MM0 = Mul16x4(I0, F4)
+MM1 = Mul16x4(I1, F5)
+MM2 = Mul16x4(I2, F6)
+MM3 = Mul16x4(I3, F7)
+
+TT0 = Add16x4(MM0, MM2)
+TT1 = Add16x4(MM1, MM3)
+
+SS = Add16x4(TT0, TT1)
+R1 = Red16x4(SS)
+
+OutputVec: R[0, 1]

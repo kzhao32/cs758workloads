@@ -1,0 +1,65 @@
+# ime-sad
+
+InputVec: Ia[0, 1]     # input
+InputVec: Ib[0, 1]     # input
+InputVec: Ic[0, 1]     # input
+InputVec: Id[0, 1]     # input
+InputVec: S[0, 1, 2, 3, 4, 5, 6, 7]     # shift to left and right
+
+# shift once version
+M0 = RShf64(Ia0, S0)   # S0 should be  0, 16, 32, 48
+M1 = LShf64(Ia1, S1)   # S1 should be 64, 48, 32, 16
+T0 = Add16x4(M0, M1)
+
+M0 = RShf64(Ib0, S2)
+M1 = LShf64(Ib1, S3)
+T1 = Add16x4(M0, M1)
+
+M0 = RShf64(Ic0, S4)
+M1 = LShf64(Ic1, S5)
+T2 = Add16x4(M0, M1)
+
+M0 = RShf64(Id0, S6)
+M1 = LShf64(Id1, S7)
+T3 = Add16x4(M0, M1)
+
+K0 = Add16x4(T0, T1)
+K1 = Add16x4(T2, T3)
+L = Add16x4(K0, K1)
+O = Red16x4(L)
+
+
+
+
+
+
+
+# shift twice version
+#M0 = LShf64(I0, S0)
+#M1 = LShf64(M0, S0)
+#M2 = RShf64(I1, S1)
+#M3 = RShf64(M2, S1)
+
+#T = Add16x4(M1, M3)
+#O = Red16x4(T, C)
+
+
+# test
+#Input: I
+#Input: F
+#Input: L
+#Input: R
+
+#M0 = RShf64(I, R)
+#M1 = LShf64(F, L)
+
+#O = Add16x4(M0, M1)
+
+# test2
+#M0 = RShf64(I0, S0)
+#M1 = LShf64(I1, S1)
+
+#T = Add16x4(M0, M1)
+#O = Add16x4(T, C)
+
+Output: O
