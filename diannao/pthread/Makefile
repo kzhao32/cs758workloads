@@ -11,7 +11,7 @@ OPT?=-O3
 CFLAGS=$(OPT) --std=c++11 -g -ggdb -gdwarf-3 
 MODULE          := class1p_pthread class3p_pthread class1_pthread class3_pthread class4_pthread class5_pthread class6_pthread class7_pthread \
                    pool1_pthread pool3_pthread pool5_pthread pool1p_pthread pool3p_pthread pool5p_pthread pool6_pthread \
-                   conv1p_pthread #conv2p_pthread conv3p_pthread conv4p_pthread conv5p_pthread conv1_pthread conv2_pthread conv3_pthread conv4_pthread conv5_pthread
+                   conv1p_pthread conv2p_pthread conv3p_pthread conv4p_pthread conv5p_pthread conv1_pthread conv2_pthread conv3_pthread conv4_pthread conv5_pthread
 #pooling convolution-shared convolution-private classifier conv1 conv2 conv3 conv4 pool1 pool3 pool5 class1 class3 conv1p conv2p conv3p conv4p pool1p pool3p pool5p class1p class3p conv5 conv5p class1p_omp class3p_omp class1_omp class3_omp
 #SRC             := $(MODULE:=.cpp)
 #OBJ             := $(MODULE:=.o)
