@@ -4,7 +4,7 @@ make
 for size in "128" "512" "2048" "8192"; do
     for numProcs in "1" "2" "4" "8" "16" "32" "64" "128" "256"; do
         for numTrial in "1" "2" "3" "4" "5"; do
-            out=`./ime-sad -x $size -y $size -p $numProcs`
+            out=`./sift-blur -x $size -y $size -p $numProcs`
             echo $out
         done
     done
