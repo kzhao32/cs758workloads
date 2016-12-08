@@ -60,7 +60,7 @@ void genImage(image* Image){
 			mem++;
 		}
 	}
-	fprintf(stderr, "Generated a zero-padded image of size %d x %d\n", Image->rowx, Image->coly);
+	//fprintf(stderr, "Generated a zero-padded image of size %d x %d\n", Image->rowx, Image->coly);
 }
 
 
@@ -92,7 +92,7 @@ void genKernel(int* kernel, int size){
 			mem++;
 		}
 	
-	fprintf(stderr, "\nGenerated a stencil kernel of size %d\n", size);
+	//fprintf(stderr, "\nGenerated a stencil kernel of size %d\n", size);
 }
 
 //print the stencil kernel to a file
@@ -114,14 +114,14 @@ void printKernel(int* kernel, int size, FILE* fp){
 void blur_filter_hor(image* inputImage, int* kernel, image* outImage, int size){
 	
 	int i, j, k, index, index_out;
-	fprintf(stderr, "\n----1D Horizantal Convolution----\n\n");
+	//fprintf(stderr, "\n----1D Horizantal Convolution----\n\n");
 	int pixel_blur, blur_prod;
 	int normalized_blur;
 
 	//Iterate whole image -- Horizantal direction
 	for(i = 0; i < (inputImage->pad_rowx); i++){      //Row-wise
 
-		fprintf(stderr, "CALCULATING BLUR OF %dth ROW OF IMAGE\n", i);
+		//fprintf(stderr, "CALCULATING BLUR OF %dth ROW OF IMAGE\n", i);
 		for(j = 0; j < ((inputImage->pad_coly) - (size - 1)); j++){      //Column-wise
 
 			pixel_blur = 0, normalized_blur = 0;
@@ -160,7 +160,7 @@ void blur_filter_ver(image* inputImage, int* kernel, image* outImage, int size){
 	//Iterate whole image -- Horizantal direction
 	for(j = 0; j < (inputImage->pad_coly); j++){      //Column-wise pixels
 
-		fprintf(stderr, "CALCULATING BLUR OF %dth COLUMN OF IMAGE\n", j);
+		//fprintf(stderr, "CALCULATING BLUR OF %dth COLUMN OF IMAGE\n", j);
 		for(i = 0; i < ((inputImage->pad_rowx) - (size - 1)); i++){      //Rows-wise pixels
 
 			pixel_blur = 0, normalized_blur = 0;

@@ -11,6 +11,8 @@
 #include <unistd.h>
 #include <libgen.h>
 #include <assert.h>
+#include <pthread.h>
+#include "hwtimer.h"
 
 #include "sift-dog.h"
 #include "sim.h"
@@ -18,25 +20,38 @@
 #define SIZE_INT sizeof(int) 
 
 static int DEBUG_FLAG = 0;
+int NumProcs = 1;
 
 void usage(char** argv){
 	fprintf(stderr, 
 			"\nUsage:	%s -x [Image_Row_count] -y [Image_Column_Count] -s [Stencil 1D Size (9, 13, 15)] -d [Direction Horizantal(0)/vertical(1)] -o [Output file]\n", basename(argv[0]));
 }
 
+struct DOG_pthread_arg_struct {
+    int threadId;
+    image* Image1;
+    image* Image2;
+    image* dogImage;
+};
 
 //*************SIFT_DOG--KERNEL***************//	
 __attribute__ ((noinline))
-void dog_filter(image* Image1, image* Image2, image* dogImage){
-
+//void dog_filter(image* Image1, image* Image2, image* dogImage){
+void* dog_filter(void* arg){
+    struct DOG_pthread_arg_struct* args = arg;
+    int threadId = args->threadId;
+    image* Image1 = args->Image1;
+    image* Image2 = args->Image2;
+    image* dogImage = args->dogImage;
+    
 	//Do the MATRIX subtraction of 2 matrices
 	int i, j, k, index;
 	int pix1, pix2;
 
 	//fprintf(stderr, "\n");
 	//Iterate whole images
-	for(i = 0; i < (Image1->rowx); i++){
-
+	//for(i = 0; i < (Image1->rowx); i++){
+    for(i = (Image1->rowx) / NumProcs * threadId; i < (Image1->rowx) && i < (Image1->rowx) / NumProcs * (threadId + 1); i++){
 		index = ((Image1->coly) * i); 
 		//for(j = 0; j < (Image1->coly); j++){
 
@@ -65,7 +80,7 @@ int main(int argc, char** argv){
 
 		//Parse the arguments
 		int r;
-		while((r = getopt(argc, argv, "x:y:s:d:o:h")) != -1)
+		while((r = getopt(argc, argv, "x:y:s:d:o:p:h")) != -1)
 		{
 			switch(r) {
 				case 'x':
@@ -83,6 +98,9 @@ int main(int argc, char** argv){
 				case 'o':
 				  outfile = strdup(optarg); 
 					break;
+				case 'p':
+					NumProcs = atoi(optarg);
+					break;
 				case 'h':
 				  usage(argv);
 					exit(1);
@@ -92,17 +110,21 @@ int main(int argc, char** argv){
 			}
 		}
 
-		if(argc < 9){
-			usage(argv);
-			fprintf(stderr, "No size options given -- Defaulting to image size (3 x 3) and 1D Stencil Size 9 in Horizantal direction\n");
-		}
+        if (DEBUG_FLAG != 0) {
+            if(argc < 9){
+                usage(argv);
+                fprintf(stderr, "No size options given -- Defaulting to image size (3 x 3) and 1D Stencil Size 9 in Horizantal direction\n");
+            }
 
-		if((size != 9) && (size != 13) && (size != 15)){
-			usage(argv);
-			fprintf(stderr, "\nStencil Kernel needs to be of size -- 9 or 13 or 15\n");
-			exit(1);
-		}
-		
+            if((size != 9) && (size != 13) && (size != 15)){
+                usage(argv);
+                fprintf(stderr, "\nStencil Kernel needs to be of size -- 9 or 13 or 15\n");
+                exit(1);
+            }
+        }
+        
+        printf("%s -x %d -y %d -p %d ", basename(argv[0]), x, y, NumProcs);
+
 		//Open a file for log output
 		FILE* fp = fopen(outfile, "w");
 		assert(fp != NULL);
@@ -182,16 +204,62 @@ int main(int argc, char** argv){
 		dogImage->pad_coly = y;
 		dogImage->img_ptr = (int*)malloc(SIZE_INT * (dogImage->rowx) * (dogImage->coly));	
 
+        int threadIndex;
+        // Initialize array of thread structures
+        pthread_t* threads = (pthread_t*) malloc(sizeof(pthread_t) * NumProcs);
+        if (threads == NULL) {
+            printf("Could not malloc pthread_t\n");
+            return EXIT_FAILURE;
+        }
+        
+        struct DOG_pthread_arg_struct* pthread_args = malloc(NumProcs * sizeof(struct DOG_pthread_arg_struct));
+        for (threadIndex = 0; threadIndex < NumProcs; ++threadIndex) {
+            pthread_args[threadIndex].threadId = threadIndex;
+            pthread_args[threadIndex].Image1 = outImage1;
+            pthread_args[threadIndex].Image2 = outImage2;
+            pthread_args[threadIndex].dogImage = dogImage;
+        }   
+        
 		//Now call SIF-DOG Kernel
-		if(DEBUG_FLAG)	
+		if(DEBUG_FLAG)
             begin_roi();
-		dog_filter(outImage1, outImage2, dogImage);	
-		
-		if(DEBUG_FLAG)	
+        
+        hwtimer_t timer;
+        initTimer(&timer);
+        startTimer(&timer); // Start the time measurment here before the algorithm starts
+		//dog_filter(outImage1, outImage2, dogImage);
+        for (threadIndex = 0; threadIndex < NumProcs; ++threadIndex) {
+            // ************************************************************
+            // pthread_create takes 4 parameters
+            //  p1: threads(output)
+            //  p2: thread attribute
+            //  p3: start routine, where new thread begins
+            //  p4: arguments to the thread
+            // ************************************************************
+            if (pthread_create(&threads[threadIndex], 
+                               NULL, 
+                               &dog_filter,
+                               (void*) &pthread_args[threadIndex])) {
+                printf("Could not create thread %d\n", threadIndex);
+                return EXIT_FAILURE;
+            }
+        }
+        
+        // Wait for each of the threads to terminate with join
+        for (threadIndex = 0; threadIndex < NumProcs; ++threadIndex) {
+            if (pthread_join(threads[threadIndex], NULL)) {
+                printf("Could not join thread\n");
+                return -1;
+            }
+        }
+		stopTimer(&timer); // End the time measuremnt here since the algorithm ended
+
+		if(DEBUG_FLAG)
             end_roi();
 
 		//Print the final dog Image
 		fprintf(fp, "\nDoG OUTPUT IMAGE MATRIX\n");
+        //dogImage[0];
 	 	printImage(dogImage, fp);
 
 		fclose(fp);
@@ -206,7 +274,9 @@ int main(int argc, char** argv){
 		free(dogImage->img_ptr);
 		free(dogImage);
 
+        //printf("Total Execution time: %lld ns\n", getTimerNs(&timer));
+        printf("%lld\n", getTimerNs(&timer));
+        
 		return 0;
 
 }
-			

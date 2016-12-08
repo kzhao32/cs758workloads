@@ -19,7 +19,7 @@
 #define SIZE_INT sizeof(int) 
 
 static int DEBUG_FLAG = 0;
-int NumProcs;
+int NumProcs = 1;
 int* sad_outs; 
 
 void usage(char** argv){
@@ -56,6 +56,7 @@ void* SAD_filter(void* arg){
 
 	//fprintf(stderr, "\n");
 	//Iterate whole image
+    //for(i = 0; i < IMAGE_PADDING(rowx); i+=SIZE){
 	for(i = IMAGE_PADDING(rowx) / NumProcs * threadId; i < IMAGE_PADDING(rowx) && i < IMAGE_PADDING(rowx) / NumProcs * (threadId + 1); i+=SIZE){
 
 		int matrix_sad = 0;
