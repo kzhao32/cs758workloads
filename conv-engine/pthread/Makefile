@@ -1,22 +1,21 @@
-#ZSIM_INCLUDE_DIR := $(zsim)/misc/hooks
-#CCFLAGS = -O3 -Wall -I $(ZSIM_INCLUDE_DIR)
+PWD=$(shell pwd)
+TEST=$(shell basename $(PWD))
+ARGS=
 
-CCFLAGS = -O3 -Wall -I./include 
-CC = gcc
+CC=gcc
+OPT?=-O3
+FF?=-DFF
 
-default: all
+NO_MCPAT?=--no-mcpat
 
-.PHONY: all
-all: ime-sad
+CFLAGS+=${FF} ${OPT} 
 
-ime-sad: ime-sad.o
-  $(CXX) -o $@ $^ --static -lpthread -lm
+all: $(TEST) 
 
-%.o: %.c
-  $(CC) $(CCFLAGS) -c -o $@ $<
+$(TEST): ${TEST}.c ${TEST}.h
+	$(CC) ${CFLAGS} $< -o $@ -lpthread --static -lm
 
-clean:
-  -rm -f *.o
-  -rm -f ime-sad
-	-rm -rf *.out *.txt
+clean: 
+	rm -rf $(TEST)
+	rm -rf *.out *.txt .txt
 

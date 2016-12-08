@@ -13,10 +13,11 @@
 #include <stdbool.h>
 
 #include "ime-sad.h"
+#include "common.h"
 
 #define SIZE_INT sizeof(int) 
 
-static int DEBUG_FLAG = 0;
+static int DEBUG_FLAG = 1;
 
 void usage(char** argv){
 	fprintf(stderr, 
@@ -34,10 +35,10 @@ int SAD_filter(int* inputImage, int* refImage, int* diffImage, int rowx, int col
 
 	//fprintf(stderr, "\n");
 	//Iterate whole image
-	for(i = 0; i < IMAGE_PADDING(rowx); i+=SIZE){
+	for(i = 0; i < IMAGE_PADDING(rowx); i=i+SIZE){
 
 		int matrix_sad = 0;
-		for(j = 0; j < IMAGE_PADDING(coly); j+=SIZE){
+		for(j = 0; j < IMAGE_PADDING(coly); j=j+SIZE){
 
 			//Iterate through whole image block-wise(conv size) - 4 x 4 2D convolution
 			//fprintf(stderr, "CALCULATE SAD - Block with i=%d, j=%d\n", i, j);
@@ -74,7 +75,7 @@ int SAD_filter(int* inputImage, int* refImage, int* diffImage, int rowx, int col
 int main(int argc, char** argv){
 		
 		//Use defaults if user does not specify image and filter sizes
-		int rowx = 16, coly = 16, diff = 1;
+		int rowx = 3, coly = 3, diff = 1;
 		char* outfile = "sad.out";
 
 		//Parse the arguments
@@ -105,7 +106,7 @@ int main(int argc, char** argv){
 
 		if(argc != 7){
 			usage(argv);
-			fprintf(stderr, "\nNo size options given -- Defaulting to image size (16 x 16)\n");
+			fprintf(stderr, "\nNo size options given -- Defaulting to image size (3 x 3)\n");
 		}
 
 
@@ -137,7 +138,11 @@ int main(int argc, char** argv){
 		int* diffImage = (int*)malloc(SIZE_INT * img_rowx * img_coly);	
 		
 		//Find the SAD of the images at kernel(convolution) size -- ker_size
+		if(DEBUG_FLAG)	
+			DETAILED_SIM_START();
 		int sad_out = SAD_filter(inputImage, refImage, diffImage, rowx, coly);
+		if(DEBUG_FLAG)
+			DETAILED_SIM_STOP();
 
 		fprintf(fp, "\nDIFF IMAGE MATRIX\n");
 		printImage(diffImage, rowx, coly, fp);
