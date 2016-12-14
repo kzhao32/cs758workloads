@@ -40,7 +40,7 @@ struct SAD_pthread_arg_struct {
 
 //SAD Calculation Kernel
 //int SAD_filter(int* inputImage, int* refImage, int* diffImage, int rowx, int coly){
-void* SAD_filter(void* arg){
+void* SAD_filter(void* arg) {
     struct SAD_pthread_arg_struct* args = arg;
     int threadId = args->threadId;
     int* inputImage = args->inputImage;

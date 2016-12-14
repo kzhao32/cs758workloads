@@ -123,7 +123,7 @@ void down_sample(image* inputImage){
 
 //SIFT blurring Kernel  -- 1D Horizantal Convultion
 __attribute__ ((noinline))
-void blur_filter_hor(image* inputImage, int* kernel, image* outImage, int size){
+void blur_filter_hor(image* inputImage, int* kernel, image* outImage, int size) {
 	
 	int i, j, k, vec, index;
 	int pixel_blur, blur_prod;

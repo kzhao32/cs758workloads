@@ -37,7 +37,7 @@ struct DOG_pthread_arg_struct {
 //*************SIFT_DOG--KERNEL***************//	
 __attribute__ ((noinline))
 //void dog_filter(image* Image1, image* Image2, image* dogImage){
-void* dog_filter(void* arg){
+void* dog_filter(void* arg) {
     struct DOG_pthread_arg_struct* args = arg;
     int threadId = args->threadId;
     image* Image1 = args->Image1;

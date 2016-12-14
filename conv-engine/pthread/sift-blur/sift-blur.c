@@ -10,6 +10,8 @@
 #include <unistd.h>
 #include <libgen.h>
 #include <assert.h>
+#include <pthread.h>
+#include "hwtimer.h"
 #include "sift-blur.h"
 
 #include "sim.h"
@@ -17,15 +19,22 @@
 
 #define SIZE_INT sizeof(int) 
 
-
 static int DEBUG_FLAG = 0;
+int NumProcs = 1;
 
 void usage(char** argv){
 	fprintf(stderr, 
-			"\nUsage:	%s -x [Image_Row_count] -y [Image_Column_Count] -s [Stencil 1D Size (9, 13, 15)] -d [Direction Horizantal(0)/vertical(1)] -o [Output file]\n", basename(argv[0]));
+			"\nUsage:	%s -x [Image_Row_count] -y [Image_Column_Count] -s [Stencil 1D Size (9, 13, 15)] -d [Direction Horizantal(0)/vertical(1)] -o [Output file] -p [numProcs]\n", basename(argv[0]));
 }
 
-
+struct BLUR_pthread_arg_struct {
+    int threadId;
+    image* inputImage;
+    int* kernel;
+    image* outImage;
+    int size;
+};
+    
 //*************Down_Sample by 2--KERNEL***************//
 void down_sample(image* inputImage){
 
@@ -120,17 +129,22 @@ void down_sample(image* inputImage){
 
 
 //*************SIFT_BLUR_HOR--KERNEL***************//
-
 //SIFT blurring Kernel  -- 1D Horizantal Convultion
 __attribute__ ((noinline))
-void blur_filter_hor(image* inputImage, int* kernel, image* outImage, int size){
-	
+//void blur_filter_hor(image* inputImage, int* kernel, image* outImage, int size){
+void* blur_filter_hor(void* arg){
+    struct BLUR_pthread_arg_struct* args = arg;
+    int threadId = args->threadId;
+    image* inputImage = args->inputImage;
+    int* kernel = args->kernel;
+    image* outImage = args->outImage;
+    int size = args->size;
 	int i, j, k, vec, index;
 	int pixel_blur, blur_prod;
 	int normalized_blur;
 	
 	//Iterate whole image -- Horizantal direction
-	for(i = 0; i < (inputImage->pad_rowx); i++){      //Row-wise
+	for(i = (inputImage->pad_rowx) / NumProcs * threadId; i < (inputImage->pad_rowx) / NumProcs * (threadId + 1); i++){      //Row-wise
 
 		//Vectorizing for 16 wide vector
 		//for(j = 0; j < (inputImage->coly); j=j+16){      //Column-wise -- 16 element
@@ -156,7 +170,6 @@ void blur_filter_hor(image* inputImage, int* kernel, image* outImage, int size){
 		//}//Next 16 pixels along the same row	
 			
 	}//row loop
-
 }
 
 //*************SIFT_BLUR_HOR--KERNEL***************//
@@ -165,17 +178,23 @@ void blur_filter_hor(image* inputImage, int* kernel, image* outImage, int size){
 //*************SIFT_BLUR_VER--KERNEL***************//
 
 //SIFT blurring Kernel  -- 1D Vertical Convultion
-void blur_filter_ver(image* inputImage, int* kernel, image* outImage, int size){
-	
+//void blur_filter_ver(image* inputImage, int* kernel, image* outImage, int size){
+void* blur_filter_ver(void* arg){
+    struct BLUR_pthread_arg_struct* args = arg;
+    int threadId = args->threadId;
+    image* inputImage = args->inputImage;
+    int* kernel = args->kernel;
+    image* outImage = args->outImage;
+    int size = args->size;
 	int i, j, k, index, index_out;
-	fprintf(stderr, "\n----1D Vertical Convolution----\n\n");
+	//fprintf(stderr, "\n----1D Vertical Convolution----\n\n");
 	int pixel_blur, blur_prod;
 	int normalized_blur;
 
 	//Iterate whole image -- Horizantal direction
-	for(j = 0; j < (inputImage->pad_coly); j++){      //Column-wise pixels
+	for(j = (inputImage->pad_coly) / NumProcs * threadId; j < (inputImage->pad_coly) / NumProcs * (threadId + 1); j++){      //Column-wise pixels
 
-		fprintf(stderr, "CALCULATING BLUR OF %dth COLUMN OF IMAGE\n", j);
+		//fprintf(stderr, "CALCULATING BLUR OF %dth COLUMN OF IMAGE\n", j);
 		for(i = 0; i < ((inputImage->pad_rowx) - (size - 1)); i++){      //Rows-wise pixels
 
 			pixel_blur = 0, normalized_blur = 0;
@@ -214,7 +233,7 @@ int main(int argc, char** argv){
 
 		//Parse the arguments
 		int r;
-		while((r = getopt(argc, argv, "x:y:s:d:o:h")) != -1)
+		while((r = getopt(argc, argv, "x:y:s:d:o:p:h")) != -1)
 		{
 			switch(r) {
 				case 'x':
@@ -232,6 +251,9 @@ int main(int argc, char** argv){
 				case 'o':
 				  outfile = strdup(optarg); 
 					break;
+				case 'p':
+					NumProcs = atoi(optarg);
+					break;
 				case 'h':
 				  usage(argv);
 					exit(1);
@@ -241,10 +263,12 @@ int main(int argc, char** argv){
 			}
 		}
 
-		if(argc < 9){
-			usage(argv);
-			fprintf(stderr, "No size options given -- Defaulting to image size (3 x 3) and 1D Stencil Size 9 in Horizantal direction\n");
-		}
+        if (DEBUG_FLAG != 0) {
+            if(argc < 9){
+                usage(argv);
+                fprintf(stderr, "No size options given -- Defaulting to image size (3 x 3) and 1D Stencil Size 9 in Horizantal direction\n");
+            }
+        }
 
 		if((size != 9) && (size != 13) && (size != 15)){
 			usage(argv);
@@ -290,13 +314,65 @@ int main(int argc, char** argv){
 		//Perform 1D Gaussin Blur at input image based on Convolution direction
 		
 		if(!dir){
-			if(DEBUG_FLAG)	
+                            
+            int threadIndex;
+            // Initialize array of thread structures
+            pthread_t* threads = (pthread_t*) malloc(sizeof(pthread_t) * NumProcs);
+            if (threads == NULL) {
+                printf("Could not malloc pthread_t\n");
+                return EXIT_FAILURE;
+            }
+        
+            struct BLUR_pthread_arg_struct* pthread_args = malloc(NumProcs * sizeof(struct BLUR_pthread_arg_struct));
+            for (threadIndex = 0; threadIndex < NumProcs; ++threadIndex) {
+                pthread_args[threadIndex].threadId = threadIndex;
+                pthread_args[threadIndex].inputImage = inputImage;
+                pthread_args[threadIndex].kernel = coeff_kernel;
+                pthread_args[threadIndex].outImage = outImage;
+                pthread_args[threadIndex].size = size;
+            }
+           
+			if(DEBUG_FLAG)
 				begin_roi();
-		
-			down_sample(inputImage);
-			blur_filter_hor(inputImage, coeff_kernel, outImage, size);
+            
+            //Find the SAD of the images at kernel(convolution) size -- ker_size
+            hwtimer_t timer;
+            initTimer(&timer);
+            startTimer(&timer); // Start the time measurment here before the algorithm starts
+			
+            down_sample(inputImage);
+			//blur_filter_hor(inputImage, coeff_kernel, outImage, size);
+            for (threadIndex = 0; threadIndex < NumProcs; ++threadIndex) {
+                // ************************************************************
+                // pthread_create takes 4 parameters
+                //  p1: threads(output)
+                //  p2: thread attribute
+                //  p3: start routine, where new thread begins
+                //  p4: arguments to the thread
+                // ************************************************************
+                if (pthread_create(&threads[threadIndex], 
+                                   NULL, 
+                                   &blur_filter_hor,
+                                   (void*) &pthread_args[threadIndex])) {
+                    printf("Could not create thread %d\n", threadIndex);
+                    return EXIT_FAILURE;
+                }
+            }
+            
+            // Wait for each of the threads to terminate with join
+            for (threadIndex = 0; threadIndex < NumProcs; ++threadIndex) {
+                if (pthread_join(threads[threadIndex], NULL)) {
+                    printf("Could not join thread\n");
+                    return -1;
+                }
+            }
+            
+            stopTimer(&timer); // End the time measuremnt here since the algorithm ended
+
 			if(DEBUG_FLAG)	
 				end_roi();
+            
+            printf("%lld\n", getTimerNs(&timer));
 		}
 		
 		/*else{
