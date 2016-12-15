@@ -276,6 +276,7 @@ int main(int argc, char** argv){
 			exit(1);
 		}
 	
+        printf("%s -x %d -y %d -p %d ", basename(argv[0]), x, y, NumProcs);
 
 		//Open a file for log output
 		FILE* fp = fopen(outfile, "w");
