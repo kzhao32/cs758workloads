@@ -10,6 +10,9 @@
 #include <unistd.h>
 #include <libgen.h>
 #include <assert.h>
+//#include <pthread.h>
+#include <omp.h>
+#include "hwtimer.h"
 #include "sift-blur.h"
 
 #include "sim.h"
@@ -17,15 +20,22 @@
 
 #define SIZE_INT sizeof(int) 
 
-
 static int DEBUG_FLAG = 0;
+int NumProcs = 1;
 
 void usage(char** argv){
 	fprintf(stderr, 
-			"\nUsage:	%s -x [Image_Row_count] -y [Image_Column_Count] -s [Stencil 1D Size (9, 13, 15)] -d [Direction Horizantal(0)/vertical(1)] -o [Output file]\n", basename(argv[0]));
+			"\nUsage:	%s -x [Image_Row_count] -y [Image_Column_Count] -s [Stencil 1D Size (9, 13, 15)] -d [Direction Horizantal(0)/vertical(1)] -o [Output file] -p [numProcs]\n", basename(argv[0]));
 }
 
-
+struct BLUR_pthread_arg_struct {
+    int threadId;
+    image* inputImage;
+    int* kernel;
+    image* outImage;
+    int size;
+};
+    
 //*************Down_Sample by 2--KERNEL***************//
 void down_sample(image* inputImage){
 
@@ -120,19 +130,21 @@ void down_sample(image* inputImage){
 
 
 //*************SIFT_BLUR_HOR--KERNEL***************//
-
 //SIFT blurring Kernel  -- 1D Horizantal Convultion
 __attribute__ ((noinline))
-void blur_filter_hor(image* inputImage, int* kernel, image* outImage, int size) {
-	
+void blur_filter_hor(image* inputImage, int* kernel, image* outImage, int size){
+//void* blur_filter_hor(void* arg){
 	int i, j, k, vec, index;
 	int pixel_blur, blur_prod;
 	int normalized_blur;
 	
 	//Iterate whole image -- Horizantal direction
+    #pragma omp parallel for \
+        shared(inputImage,kernel,outImage) \
+        private(i,pixel_blur,index,k,vec,blur_prod)
 	for(i = 0; i < (inputImage->pad_rowx); i++){      //Row-wise
-
-		//Vectorizing for 16 wide vector
+	//for(i = (inputImage->pad_rowx) / NumProcs * threadId; i < (inputImage->pad_rowx) / NumProcs * (threadId + 1); i++){      //Row-wise
+    	//Vectorizing for 16 wide vector
 		//for(j = 0; j < (inputImage->coly); j=j+16){      //Column-wise -- 16 element
 			pixel_blur = 0, normalized_blur = 0;
 			index = (inputImage->coly * i);							//Image index
@@ -156,7 +168,6 @@ void blur_filter_hor(image* inputImage, int* kernel, image* outImage, int size) 
 		//}//Next 16 pixels along the same row	
 			
 	}//row loop
-
 }
 
 //*************SIFT_BLUR_HOR--KERNEL***************//
@@ -166,23 +177,26 @@ void blur_filter_hor(image* inputImage, int* kernel, image* outImage, int size) 
 
 //SIFT blurring Kernel  -- 1D Vertical Convultion
 void blur_filter_ver(image* inputImage, int* kernel, image* outImage, int size){
-	
+//void* blur_filter_ver(void* arg){
 	int i, j, k, index, index_out;
-	fprintf(stderr, "\n----1D Vertical Convolution----\n\n");
+	//fprintf(stderr, "\n----1D Vertical Convolution----\n\n");
 	int pixel_blur, blur_prod;
 	int normalized_blur;
 
 	//Iterate whole image -- Horizantal direction
+    #pragma omp parallel for \
+        shared(inputImage,kernel,outImage) \
+        private(j,i,pixel_blur,normalized_blur,k,index,blur_prod,index_out)
 	for(j = 0; j < (inputImage->pad_coly); j++){      //Column-wise pixels
+	//for(j = (inputImage->pad_coly) / NumProcs * threadId; j < (inputImage->pad_coly) / NumProcs * (threadId + 1); j++){      //Column-wise pixels
 
-		fprintf(stderr, "CALCULATING BLUR OF %dth COLUMN OF IMAGE\n", j);
+		//fprintf(stderr, "CALCULATING BLUR OF %dth COLUMN OF IMAGE\n", j);
 		for(i = 0; i < ((inputImage->pad_rowx) - (size - 1)); i++){      //Rows-wise pixels
 
 			pixel_blur = 0, normalized_blur = 0;
 			if(i < (inputImage->rowx)){																		//Avoid unnecessary zero-computation
 
 				for (k = 0; k < size; k++){
-					blur_prod = 0;	
 					index = INDEX_1D_VER(i, j, k, inputImage->rowx, size); 
 
 					blur_prod = (*(inputImage->img_ptr + index)) * (*(kernel + k)); //Product
@@ -214,7 +228,7 @@ int main(int argc, char** argv){
 
 		//Parse the arguments
 		int r;
-		while((r = getopt(argc, argv, "x:y:s:d:o:h")) != -1)
+		while((r = getopt(argc, argv, "x:y:s:d:o:p:h")) != -1)
 		{
 			switch(r) {
 				case 'x':
@@ -232,6 +246,9 @@ int main(int argc, char** argv){
 				case 'o':
 				  outfile = strdup(optarg); 
 					break;
+				case 'p':
+					NumProcs = atoi(optarg);
+					break;
 				case 'h':
 				  usage(argv);
 					exit(1);
@@ -241,18 +258,22 @@ int main(int argc, char** argv){
 			}
 		}
 
-		if(argc < 9){
-			usage(argv);
-			fprintf(stderr, "No size options given -- Defaulting to image size (3 x 3) and 1D Stencil Size 9 in Horizantal direction\n");
-		}
+        if (DEBUG_FLAG != 0) {
+            if(argc < 9){
+                usage(argv);
+                fprintf(stderr, "No size options given -- Defaulting to image size (3 x 3) and 1D Stencil Size 9 in Horizantal direction\n");
+            }
+        }
 
 		if((size != 9) && (size != 13) && (size != 15)){
 			usage(argv);
 			fprintf(stderr, "\nStencil Kernel needs to be of size -- 9 or 13 or 15\n");
 			exit(1);
 		}
-	
-
+        
+        printf("%s -x %d -y %d -p %d ", basename(argv[0]), x, y, NumProcs);
+        omp_set_num_threads(NumProcs);
+        
 		//Open a file for log output
 		FILE* fp = fopen(outfile, "w");
 		assert(fp != NULL);
@@ -290,13 +311,26 @@ int main(int argc, char** argv){
 		//Perform 1D Gaussin Blur at input image based on Convolution direction
 		
 		if(!dir){
-			if(DEBUG_FLAG)	
+                            
+            int threadIndex;
+            
+			if(DEBUG_FLAG)
 				begin_roi();
-		
-			down_sample(inputImage);
+            
+            //Find the SAD of the images at kernel(convolution) size -- ker_size
+            hwtimer_t timer;
+            initTimer(&timer);
+            startTimer(&timer); // Start the time measurment here before the algorithm starts
+			
+            down_sample(inputImage);
 			blur_filter_hor(inputImage, coeff_kernel, outImage, size);
+            
+            stopTimer(&timer); // End the time measuremnt here since the algorithm ended
+
 			if(DEBUG_FLAG)	
 				end_roi();
+            
+            printf("%lld\n", getTimerNs(&timer));
 		}
 		
 		/*else{

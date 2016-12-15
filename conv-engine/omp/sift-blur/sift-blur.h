@@ -59,7 +59,7 @@ void genImage(image* Image){
 			mem++;
 		}
 	}
-	fprintf(stderr, "Generated a zero-padded image of size %d x %d\n", Image->rowx, Image->coly);
+	//fprintf(stderr, "Generated a zero-padded image of size %d x %d\n", Image->rowx, Image->coly);
 }
 
 
@@ -92,7 +92,7 @@ void genKernel(int* kernel, int size){
 			mem++;
 		}
 	
-	fprintf(stderr, "\nGenerated a stencil kernel of size %d\n", size);
+	//fprintf(stderr, "\nGenerated a stencil kernel of size %d\n", size);
 }
 
 //print the stencil kernel to a file
