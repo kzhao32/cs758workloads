@@ -9,7 +9,7 @@ CPP=/s/gcc-4.7.3/bin/g++ -O3
 
 OPT?=-O3
 CFLAGS=$(OPT) --std=c++11 -g -ggdb -gdwarf-3 
-MODULE          := class1_omp class3_omp class1p_omp class3p_omp class4_omp class5_omp class6_omp class7_omp \
+MODULE          := class1_omp class3_omp class1p_omp class3p_omp class4_omp class5_omp class6_omp class7_omp class8_omp \
                    pool1_omp pool3_omp pool5_omp pool1p_omp pool3p_omp pool5p_omp pool6_omp \
                    conv1p_omp conv2p_omp conv3p_omp conv4p_omp conv5p_omp conv1_omp conv2_omp conv3_omp conv4_omp conv5_omp
 #                   pool6_omp pool7_omp pool8_omp pool9_omp
@@ -138,6 +138,9 @@ class6_omp: classifier_omp.cpp
 
 class7_omp: classifier_omp.cpp
 	$(CPP) $^ $(LIB) $(CFLAGS) -fopenmp -static -o $@ -DNi=9600000 -DNn=20     -DTii=80 -DTi=20 -DTnn=20 -DTn=20
+
+class8_omp: classifier_omp.cpp
+	$(CPP) $^ $(LIB) $(CFLAGS) -fopenmp -static -o $@ -DNi=10240 -DNn=10240     -DTii=80 -DTi=20 -DTnn=20 -DTn=20
 
 pool1p_omp: pooling_omp.cpp
 	$(CPP) $^ $(LIB) $(CFLAGS) $(TF) -fopenmp -static -o $@ -DNx=492 -DNy=368 -DKx=2  -DKy=2  -DNi=16     -DTii=16 -DTx=2 -DTy=2
